@@ -1,6 +1,19 @@
 PROJECT = the_scheduler
 
 # -----------------------------------------------------------------------------
+# QEMU Simulation Settings
+# -----------------------------------------------------------------------------
+ELF = $(PROJECT).elf
+MACHINE = mps2-an386
+# Note: QEMU uses 'cortex-m4' even if you are using the FPU (M4F)
+CPU_QEMU = cortex-m4
+
+# Flags: -nographic (no window), -serial mon:stdio (UART output to terminal)
+QEMU_FLAGS = -M $(MACHINE) -cpu $(CPU_QEMU) -kernel $(ELF) -nographic -serial mon:stdio
+# Debug Flags: -S (freeze on startup), -s (listen on TCP 1234)
+QEMU_FLAGS_DBG = -S -s
+
+# -----------------------------------------------------------------------------
 # Hardware & Architecture Settings
 # -----------------------------------------------------------------------------
 
@@ -101,4 +114,23 @@ $(PROJECT).elf: $(OBJS)
 clean:
 	rm -f $(OBJS) $(PROJECT).elf $(PROJECT).map
 
-.PHONY: all clean
+# -----------------------------------------------------------------------------
+# Simulation Rules
+# -----------------------------------------------------------------------------
+
+# Run the simulation (Press Ctrl+A, then X to exit)
+qemu: all
+	@echo "Starting QEMU..."
+	qemu-system-arm $(QEMU_FLAGS)
+
+# Start simulation in "Frozen" state waiting for GDB
+qemu_debug: all
+	@echo "Starting QEMU in debug mode (Waiting for GDB on :1234)..."
+	qemu-system-arm $(QEMU_FLAGS) $(QEMU_FLAGS_DBG)
+
+# Start GDB and connect to QEMU automatically
+gdb:
+	arm-none-eabi-gdb $(ELF) -ex "target remote localhost:1234"
+
+.PHONY: all clean qemu qemu_debug gdb
+
