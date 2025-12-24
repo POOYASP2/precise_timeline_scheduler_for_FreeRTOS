@@ -33,12 +33,10 @@ sudo pacman -S arm-none-eabi-gcc arm-none-eabi-newlib qemu-system-arm-headless a
 
 ### Cloning
 
-Since the kernel is a submodule, you must clone recursively or update submodules after cloning.
 
 ```bash
 git clone https://baltig.polito.it/eos25/group5.git
 cd group5
-git submodule update --init --recursive
 ```
 
 ### Building
