@@ -1,6 +1,14 @@
 PROJECT = the_scheduler
 
 # -----------------------------------------------------------------------------
+# GDB Settings
+# -----------------------------------------------------------------------------
+GDB_TOOL := $(shell command -v arm-none-eabi-gdb 2> /dev/null)
+ifndef GDB_TOOL
+GDB_TOOL := gdb-multiarch
+endif
+
+# -----------------------------------------------------------------------------
 # QEMU Simulation Settings
 # -----------------------------------------------------------------------------
 ELF = $(PROJECT).elf
@@ -130,7 +138,7 @@ qemu_debug: all
 
 # Start GDB and connect to QEMU automatically
 gdb:
-	arm-none-eabi-gdb $(ELF) -ex "target remote localhost:1234"
+	$(GDB_TOOL) $(ELF) -ex "target remote localhost:1234"
 
 .PHONY: all clean qemu qemu_debug gdb
 
