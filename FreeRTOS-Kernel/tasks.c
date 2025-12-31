@@ -522,6 +522,25 @@ PRIVILEGED_DATA static volatile configRUN_TIME_COUNTER_TYPE ulTotalRunTime[ conf
 
 #endif
 
+/*-------------------------------- Our Extensions --------------------------------*/
+
+/* Global Time Counters for the Timeline Scheduler */
+volatile uint32_t ulGlobalTimeInFrame = 0;   // 0 to 100ms
+volatile uint32_t ulCurrentSubFrameIndex = 0; // 0, 1, 2...
+volatile uint32_t ulSubFrameDuration = 0;    // e.g., 10ms
+volatile uint32_t ulTotalSubFrames = 0;      // e.g., 10 slots
+
+/* Configuration Function (Called by timeline_scheduler.c) */
+void vConfigureTimerForTimeline(uint32_t ulDuration, uint32_t ulTotal) {
+    ulSubFrameDuration = ulDuration;
+    ulTotalSubFrames = ulTotal;
+    ulGlobalTimeInFrame = 0;
+    ulCurrentSubFrameIndex = 0;
+}
+/* -------------------------------------END--------------------------------------- */
+
+
+
 /*-----------------------------------------------------------*/
 
 /* File private functions. --------------------------------*/
@@ -4676,6 +4695,29 @@ BaseType_t xTaskIncrementTick( void )
     #if ( configUSE_PREEMPTION == 1 ) && ( configNUMBER_OF_CORES > 1 )
     BaseType_t xYieldRequiredForCore[ configNUMBER_OF_CORES ] = { pdFALSE };
     #endif /* #if ( configUSE_PREEMPTION == 1 ) && ( configNUMBER_OF_CORES > 1 ) */
+
+
+    /* --- ---------------------------TIMELINE SCHEDULER UPDATE START ---------------------- */
+    /* Only count if the scheduler is actually configured */
+    if (ulSubFrameDuration > 0) 
+    {
+        ulGlobalTimeInFrame++;   // Same as xTickCount in FreeRTOS
+
+        /* Check for Sub-Frame Rollover */
+        if ((ulGlobalTimeInFrame % ulSubFrameDuration) == 0) 
+        {
+            ulCurrentSubFrameIndex++;
+        }
+
+        /* Check for Major Frame Rollover (Reset) */
+        if (ulCurrentSubFrameIndex >= ulTotalSubFrames) 
+        {
+            ulGlobalTimeInFrame = 0;
+            ulCurrentSubFrameIndex = 0;
+        }
+    }
+    /* -------------------------------TIMELINE SCHEDULER UPDATE END ----------------------- */
+
 
     traceENTER_xTaskIncrementTick();
 

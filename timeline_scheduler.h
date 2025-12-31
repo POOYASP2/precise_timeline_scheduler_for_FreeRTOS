@@ -1,0 +1,40 @@
+#define TIMELINE_SCHEDULER_H
+#ifdef TIMELINE_SCHEDULER_H
+
+
+#include "FreeRTOS.h"
+#include "task.h"
+
+/* 1. Define the Task Types */
+typedef enum {
+    HARD_RT,   // Must start/end exactly on time. Killed if late.Start other tasks if terminated earlier than deadline
+    SOFT_RT    // Runs only if CPU is idle.
+} TaskType_t;
+
+/* 2. Define the Configuration Structure 
+   This is what the user fills out in main.c to define their plan. */
+typedef struct {
+    const char* task_name;      // Human readable name (for debugging)
+    TaskFunction_t function;    // Pointer to the function to run
+    TaskType_t type;            // HRT or SRT
+
+    uint32_t ulStart_time_ms;   // Relative to the start of the the task
+    uint32_t ulEnd_time_ms;     // Relative to the end of the task
+    
+    uint32_t ulSubframe_id;     // Which subframe does this belong to?
+    
+    uint16_t usStackSize;       // Stack Size (Standard FreeRTOS param)
+    
+} TimelineTaskConfig_t;
+
+
+/* 3. This function will verify the table and set up the OS */
+void vStartTimelineScheduler(const TimelineTaskConfig_t *pxScheduleTable, 
+                             uint32_t ulTableSize, 
+                             uint32_t ulSubFrameDurationMs, 
+                             uint32_t ulTotalSubFrames);
+
+
+                             
+
+#endif /* TIMELINE_SCHEDULER_H */

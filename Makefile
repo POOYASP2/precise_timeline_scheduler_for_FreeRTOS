@@ -85,7 +85,8 @@ SOURCES += \
     $(KERNEL_DIR)/portable/MemMang/heap_4.c
 
 # 3. The Application
-SOURCES += main.c 
+SOURCES += main.c \
+           timeline_scheduler.c
 
 # -----------------------------------------------------------------------------
 # Compiler Flags
