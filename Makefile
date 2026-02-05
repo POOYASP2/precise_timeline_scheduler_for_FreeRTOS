@@ -58,6 +58,8 @@ KERNEL_DIR = FreeRTOS-Kernel
 SOURCE_DIR = .
 DEVICE_DIR = device
 CONFIG_DIR = config
+DRIVERS_DIR = drivers
+UTILS_DIR   = utils
 
 # Include Paths
 INCLUDES = \
@@ -65,7 +67,9 @@ INCLUDES = \
     -I$(CONFIG_DIR) \
     -I$(KERNEL_DIR)/include \
     -I$(PORT_DIR) \
-    -I$(DEVICE_DIR)
+    -I$(DEVICE_DIR) \
+    -I$(DRIVERS_DIR) \
+    -I$(UTILS_DIR)
 
 # Source Files
 # 1. The Kernel
@@ -85,8 +89,16 @@ SOURCES += \
     $(KERNEL_DIR)/portable/MemMang/heap_4.c
 
 # 3. The Application
-SOURCES += main.c \
+SOURCES += main.c\
            timeline_scheduler.c
+
+# 4. Project Modules (drivers/ and utils/)
+DRIVERS_SRCS := $(wildcard $(DRIVERS_DIR)/*.c)
+UTILS_SRCS   := $(wildcard $(UTILS_DIR)/*.c)
+SOURCES += $(DRIVERS_SRCS) $(UTILS_SRCS)
+
+DRIVERS_OBJS := $(DRIVERS_SRCS:.c=.o)
+UTILS_OBJS   := $(UTILS_SRCS:.c=.o)
 
 # -----------------------------------------------------------------------------
 # Compiler Flags
@@ -141,5 +153,4 @@ qemu_debug: all
 gdb:
 	$(GDB_TOOL) $(ELF) -ex "target remote localhost:1234"
 
-.PHONY: all clean qemu qemu_debug gdb
-
+.PHONY: all clean qemu qemu_debug gdb drivers utils
