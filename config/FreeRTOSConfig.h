@@ -38,7 +38,7 @@
 *
 * See http://www.freertos.org/a00110.html
 *----------------------------------------------------------*/
-
+#define configUSE_PRECISE_SCHEDULER             1
 #define configGENERATE_RUN_TIME_STATS            0
 
 #define configUSE_PREEMPTION                     1
@@ -96,6 +96,7 @@
 #define INCLUDE_xTimerPendFunctionCall            1
 #define INCLUDE_xTaskAbortDelay                   1
 #define INCLUDE_xTaskGetHandle                    1
+#define INCLUDE_xTaskResumeFromISR                1
 
 /* ========================================================== 
  CORTEX-M4F SPECIFIC INTERRUPT CONFIGURATION             ==========================================================*/

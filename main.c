@@ -1,36 +1,35 @@
-#include <stdint.h>
-#include "FreeRTOS.h"
-#include "task.h"
+#include "timeline_scheduler.h" 
 
-/* ---------------------------------------------------
- * Test Task
- * --------------------------------------------------- */
-void vTestTask(void *pvParameters) {
-    (void)pvParameters; // Unused
-    volatile uint32_t ulCycleCount = 0;
-
-    for (;;) {
-        // Just increment a counter so we can see it changing in GDB/QEMU
-        ulCycleCount++;
-        
-        // Yield to let the idle task run (optional in preemptive, good practice)
-        vTaskDelay(pdMS_TO_TICKS(100)); 
-    }
+/* Dummy Task Functions */
+void vTask1(void *pvParams) { 
+    
+}
+void vTask2(void *pvParams) { 
+    
 }
 
-/* ---------------------------------------------------
- * Main Entry Point
- * --------------------------------------------------- */
-int main(void) {
-    // 1. Create a simple task
-    // Parameters: Function, Name, Stack Size, Params, Priority, Handle
-    xTaskCreate(vTestTask, "Test", configMINIMAL_STACK_SIZE, NULL, 1, NULL);
+TaskHandle_t TASK1 ;
+TaskHandle_t TASK2 ;
 
-    // 2. Start the Scheduler (Should never return)
-    vTaskStartScheduler();
+/* The Schedule Table */
+TimelineTaskConfig_t my_schedule[] = {
+    // Name      Func       Type     Start  End   Slot  Stack   TaskHandle
+    { "TASK 1", vTask1,     HARD_RT, 0,     5,    0,    128,    NULL },
+    { "TASK 2", vTask2,     HARD_RT, 5,     10,   0,    128,    NULL }
+};
 
-    // 3. Trap if scheduler fails (e.g. not enough heap)
-    for (;;) { }
+int main( void )
+{
+    
+
+    /* Initialize your Timeline Scheduler */
+    // Pass the array, the number of tasks (2), subframe size (10ms), total slots (1)
+    vStartTimelineScheduler(my_schedule, 2, 10, 1);
+
+    
+    while(1){
+        // infinite loop (never reach here)
+    };
 }
 
 /* ---------------------------------------------------

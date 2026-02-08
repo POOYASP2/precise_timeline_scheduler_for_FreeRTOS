@@ -30,6 +30,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+
 /* Defining MPU_WRAPPERS_INCLUDED_FROM_API_FILE prevents task.h from redefining
  * all the API functions to use the MPU wrappers.  That should only be done when
  * task.h is included from an application file. */
@@ -521,6 +522,27 @@ PRIVILEGED_DATA static configRUN_TIME_COUNTER_TYPE ulTaskSwitchedInTime[ configN
 PRIVILEGED_DATA static volatile configRUN_TIME_COUNTER_TYPE ulTotalRunTime[ configNUMBER_OF_CORES ] = { 0U }; /**< Holds the total amount of execution time as defined by the run time counter clock. */
 
 #endif
+
+
+
+#if(configUSE_PRECISE_SCHEDULER == 1)
+        /* Global Time Counters for the Timeline Scheduler */
+    volatile uint32_t ulGlobalTimeInFrame = 0;   // 0 to 100ms
+    volatile uint32_t ulCurrentSubFrameIndex = 0; // 0, 1, 2...
+    volatile uint32_t ulSubFrameDuration = 0;    // e.g., 10ms
+    volatile uint32_t ulTotalSubFrames = 0;      // e.g., 10 slots
+
+    /* Configuration Function (Called by timeline_scheduler.c) */
+    void vConfigureTimerForTimeline(uint32_t ulDuration, uint32_t ulTotal) {
+        ulSubFrameDuration = ulDuration;
+        ulTotalSubFrames = ulTotal;
+        ulGlobalTimeInFrame = 0;
+        ulCurrentSubFrameIndex = 0;
+    }
+
+#endif
+
+
 
 /*-----------------------------------------------------------*/
 
@@ -4677,6 +4699,36 @@ BaseType_t xTaskIncrementTick( void )
     BaseType_t xYieldRequiredForCore[ configNUMBER_OF_CORES ] = { pdFALSE };
     #endif /* #if ( configUSE_PREEMPTION == 1 ) && ( configNUMBER_OF_CORES > 1 ) */
 
+    /* --- --------------------------- GLOBAL VARIABLES UPDATES ---------------------- */
+
+    #if(configUSE_PRECISE_SCHEDULER == 1)
+
+        
+        /* Only count if the scheduler is actually configured */
+        if (ulSubFrameDuration > 0) 
+        {
+            ulGlobalTimeInFrame++;   // Same as xTickCount in FreeRTOS
+
+            /* Check for Sub-Frame Rollover */
+            if ((ulGlobalTimeInFrame % ulSubFrameDuration) == 0) 
+            {
+                ulCurrentSubFrameIndex++;
+            }
+
+            /* Check for Major Frame Rollover */
+            if (ulCurrentSubFrameIndex >= ulTotalSubFrames) 
+            {
+                ulGlobalTimeInFrame = 0;
+                ulCurrentSubFrameIndex = 0;
+                extern void vResetTimelineMajorFrame(void);
+                vResetTimelineMajorFrame();
+            }
+        }
+        
+    #endif
+    /* -------------------------------TIMELINE SCHEDULER UPDATE END ----------------------- */
+ 
+
     traceENTER_xTaskIncrementTick();
 
     /* Called by the portable layer each time a tick interrupt occurs.
@@ -4916,6 +4968,18 @@ BaseType_t xTaskIncrementTick( void )
     }
 
     traceRETURN_xTaskIncrementTick( xSwitchRequired );
+    
+
+    #if(configUSE_PRECISE_SCHEDULER == 1)
+
+        extern BaseType_t xUpdateTimelineScheduler(void);
+        BaseType_t xUpdateResult = xUpdateTimelineScheduler();
+
+        if(xUpdateResult == pdTRUE){
+            xSwitchRequired = pdTRUE ;
+        }
+
+    #endif
 
     return xSwitchRequired;
 }
