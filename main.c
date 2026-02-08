@@ -3,7 +3,7 @@
 #define MINOR_FRAME_DURATION_MS 10
 
 // A helper function to check any possible mistakes on the schedule table before scheduling
-SchedErr_t xValidateSchedule(const TimelineTaskConfig_t *pxSchedule, 
+SchedError_t xValidateSchedule(const TimelineTaskConfig_t *pxSchedule, 
                                uint32_t uxTaskCount, 
                                uint32_t ulSubFrameDuration,
                                uint32_t ulTotalSubFrames);
@@ -78,11 +78,7 @@ void vAssertCalled(const char *pcFileName, uint32_t ulLine) {
 /* REQUIRED FOR configSUPPORT_STATIC_ALLOCATION = 1           */
 /* ========================================================== */
 
-/* 1. Static Memo        
-
-        return SUCCESS;
-}
-ry for the Idle Task
+/* 1. Static Memory for the Idle Task
    The kernel needs a Task Control Block (TCB) and a Stack. */
 static StaticTask_t xIdleTaskTCB;
 static StackType_t uxIdleTaskStack[configMINIMAL_STACK_SIZE];
@@ -117,7 +113,7 @@ void vApplicationGetTimerTaskMemory(StaticTask_t **ppxTimerTaskTCBBuffer,
     *ppxTimerTaskStackBuffer = uxTimerTaskStack;
     *pulTimerTaskStackSize = configTIMER_TASK_STACK_DEPTH;
 }
-SchedErr_t xValidateSchedule(const TimelineTaskConfig_t *pxSchedule, 
+SchedError_t xValidateSchedule(const TimelineTaskConfig_t *pxSchedule, 
 			     uint32_t uxTaskCount,
 			     uint32_t ulSubFrameDuration,
 			     uint32_t ulTotalSubFrames)
