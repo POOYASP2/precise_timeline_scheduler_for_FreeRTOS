@@ -34,7 +34,13 @@ void vStartTimelineScheduler(const TimelineTaskConfig_t *pxScheduleTable,
                              uint32_t ulSubFrameDurationMs, 
                              uint32_t ulTotalSubFrames);
 
-
-                             
+/*4. Error codes for verify_table function*/
+typedef enum {
+	SCHED_VALID = 0,
+	ERR_INVALID_TIME, // Start >= End
+	ERR_OUT_OF_BOUNDS, // End > Subframe Duration
+	ERR_OVERLAP, // 2 HRT tasks overlap
+	ERR_INVALID_SF // non-existing sub-frame id!
+} SchedError_t;                            
 
 #endif /* TIMELINE_SCHEDULER_H */

@@ -1,4 +1,12 @@
 #include "timeline_scheduler.h" 
+#define MAJOR_FRAME_DURATION_MS 100
+#define MINOR_FRAME_DURATION_MS 10
+
+// A helper function to check any possible mistakes on the schedule table before scheduling
+SchedErr_t xValidateSchedule(const TimelineTaskConfig_t *pxSchedule, 
+                               uint32_t uxTaskCount, 
+                               uint32_t ulSubFrameDuration,
+                               uint32_t ulTotalSubFrames);
 
 /* Dummy Task Functions */
 void vTask1(void *pvParams) { 
@@ -15,14 +23,19 @@ const TimelineTaskConfig_t my_schedule[] = {
     { "TASK 2", vTask2, HARD_RT, 5,     10,   0,    128 }
 };
 
-int main( void )
+int main(void)
 {
-    
+    // We should pass the major and minor frame durations during the execution to argv!
+    // If the required checks are satisfied we start the scheduler
+    uint32_t subFrameCount = MAJOR_FRAME_DURATION_MS / MINOR_FRAME_DURATION_MS;
+    uint32_t numTasks = sizeof(my_schedule)/sizeof(my_schedule[0]);
 
-    /* Initialize your Timeline Scheduler */
-    // Pass the array, the number of tasks (2), subframe size (10ms), total slots (1)
-    vStartTimelineScheduler(my_schedule, 2, 10, 1);
-
+    if(xValidateSchedule(my_schedule, numTasks, MINOR_FRAME_DURATION_MS, subFrameCount) == SCHED_VALID) //if the table valid proceed...
+    {
+	/* Initialize your Timeline Scheduler */
+        // Pass the array, the number of tasks (2), subframe size (10ms), total slots (1)
+    	vStartTimelineScheduler(my_schedule, numTasks, MINOR_FRAME_DURATION_MS, subFrameCount);
+    }
     
     while(1){
         // infinite loop (never reach here)
@@ -57,7 +70,7 @@ void vApplicationTickHook(void) {
 void vAssertCalled(const char *pcFileName, uint32_t ulLine) {
     (void)pcFileName;
     (void)ulLine;
-    // Trap
+    // TrapTimelineTaskConfig_t
     for (;;) { __asm("bkpt 0"); }
 }
 
@@ -65,7 +78,11 @@ void vAssertCalled(const char *pcFileName, uint32_t ulLine) {
 /* REQUIRED FOR configSUPPORT_STATIC_ALLOCATION = 1           */
 /* ========================================================== */
 
-/* 1. Static Memory for the Idle Task
+/* 1. Static Memo        
+
+        return SUCCESS;
+}
+ry for the Idle Task
    The kernel needs a Task Control Block (TCB) and a Stack. */
 static StaticTask_t xIdleTaskTCB;
 static StackType_t uxIdleTaskStack[configMINIMAL_STACK_SIZE];
@@ -99,4 +116,50 @@ void vApplicationGetTimerTaskMemory(StaticTask_t **ppxTimerTaskTCBBuffer,
     *ppxTimerTaskTCBBuffer = &xTimerTaskTCB;
     *ppxTimerTaskStackBuffer = uxTimerTaskStack;
     *pulTimerTaskStackSize = configTIMER_TASK_STACK_DEPTH;
+}
+SchedErr_t xValidateSchedule(const TimelineTaskConfig_t *pxSchedule, 
+			     uint32_t uxTaskCount,
+			     uint32_t ulSubFrameDuration,
+			     uint32_t ulTotalSubFrames)
+{
+    for(uint32_t i=0; i < uxTaskCount; i++)
+    {
+	// verifying that the start time of the task is less than the end time!
+	if (pxSchedule[i].ulEnd_time_ms <= pxSchedule[i].ulStart_time_ms) {
+            // LOG!
+            return ERR_INVALID_TIME;
+        }
+	// here returning an error if the end time and start time are exceeding the subframe duration
+	if(pxSchedule[i].ulEnd_time_ms > ulSubFrameDuration || pxSchedule[i].ulStart_time_ms > ulSubFrameDuration)
+	{
+	    // LOG!
+	    return ERR_OUT_OF_BOUNDS;
+	}
+	// a task cannot be asigned to a non existing subframe, here checking that!
+	if (pxSchedule[i].ulSubframe_id >= ulTotalSubFrames) {
+            // LOG!
+            return ERR_INVALID_SF;
+        }
+	// check if the type of the task is HRT
+	if(pxSchedule[i].type == HARD_RT)
+	{   // if yes we'll check if a congestion occurs or not!
+	    for (uint32_t j = i + 1; j < uxTaskCount; j++)
+	   {
+		// We'll compare between HRT tasks under the same subframe
+		if (pxSchedule[j].type == HARD_RT && pxSchedule[i].ulSubframe_id == pxSchedule[j].ulSubframe_id) {
+			// given tasks A and B
+			// we'll have a congestion if start_A < end_B and start_B < end_A, we must check it:
+			if ((pxSchedule[i].ulStart_time_ms < pxSchedule[j].ulEnd_time_ms) && 
+                        (pxSchedule[j].ulStart_time_ms < pxSchedule[i].ulEnd_time_ms)) {
+                        	// LOG!
+                        	return ERR_OVERLAP;
+			}
+		}
+	   }
+	}
+
+    }
+
+	return SCHED_VALID;
+
 }
