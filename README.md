@@ -97,12 +97,14 @@ This project follows the FreeRTOS license schema (MIT-style Open Source).
 ## Repository Structure
 ```text
 .
-├── FreeRTOS-Kernel/    # Official FreeRTOS Kernel (Git Submodule)
-├── config/             # FreeRTOS Configuration (FreeRTOSConfig.h)
-├── device/             # Board Support Package (Startup & Linker scripts)
-├── main.c              # Application entry point and test tasks
-├── Makefile            # Build system for ARM GCC
-└── README.md           # This documentation
+├── FreeRTOS-Kernel/    	# Official FreeRTOS Kernel (Git Submodule)
+├── config/             	# FreeRTOS Configuration (FreeRTOSConfig.h)
+├── device/             	# Board Support Package (Startup & Linker scripts)
+├── main.c              	# Application entry point and test tasks
+├── timeline_scheduler.c	# A file in which the main scheduler is implemented
+├── timeline_scheduler.h	# A file in which the daat structures and prototypes are defined
+├── Makefile            	# Build system for ARM GCC
+└── README.md           	# This documentation
 ```
 
 ## Authors
@@ -110,5 +112,5 @@ This project follows the FreeRTOS license schema (MIT-style Open Source).
 - [Kuzey Kara](https://github.com/kuzeykara)
 - [Giacomo Pessolano]()
 - [Pooya Sharifi]()
-- [Mohammad Tohidnia]() 
+- [Mohammad Tohidnia](https://github.com/mohammadTohidnia) 
 
