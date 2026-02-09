@@ -1,4 +1,5 @@
-#include "timeline_scheduler.h" 
+#include "timeline_scheduler.h"
+
 #define MAJOR_FRAME_DURATION_MS 100
 #define MINOR_FRAME_DURATION_MS 10
 
@@ -16,11 +17,16 @@ void vTask2(void *pvParams) {
     
 }
 
+// These are not used yet?
+TaskHandle_t TASK1 ;
+TaskHandle_t TASK2 ;
+
+
 /* The Schedule Table */
-const TimelineTaskConfig_t my_schedule[] = {
-    // Name      Func         Type     Start  End   Slot  Stack
-    { "TASK 1", vTask1, HARD_RT, 0,     5,    0,    128 },
-    { "TASK 2", vTask2, HARD_RT, 5,     10,   0,    128 }
+static TimelineTaskConfig_t my_schedule[] = {
+    // Name      Func      Type  Start  End   Slot  Stack, xHandle, State
+    { "TASK 1", vTask1, HARD_RT, 0,     5,    0,    128,   NULL,    TASK_NOT_STARTED },
+    { "TASK 2", vTask2, HARD_RT, 5,     10,   0,    128,   NULL,    TASK_NOT_STARTED }
 };
 
 int main(void)

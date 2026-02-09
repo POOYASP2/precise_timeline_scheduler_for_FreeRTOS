@@ -522,22 +522,26 @@ PRIVILEGED_DATA static volatile configRUN_TIME_COUNTER_TYPE ulTotalRunTime[ conf
 
 #endif
 
-/*-------------------------------- Our Extensions --------------------------------*/
+/*----------------------Our Extensions----------------------*/
 
-/* Global Time Counters for the Timeline Scheduler */
-volatile uint32_t ulGlobalTimeInFrame = 0;   // 0 to 100ms
-volatile uint32_t ulCurrentSubFrameIndex = 0; // 0, 1, 2...
-volatile uint32_t ulSubFrameDuration = 0;    // e.g., 10ms
-volatile uint32_t ulTotalSubFrames = 0;      // e.g., 10 slots
+#if(configUSE_PRECISE_SCHEDULER == 1)
+    /* Global Time Counters for the Timeline Scheduler */
+    volatile uint32_t ulGlobalTimeInFrame = 0;   // 0 to 100ms
+    volatile uint32_t ulCurrentSubFrameIndex = 0; // 0, 1, 2...
+    volatile uint32_t ulSubFrameDuration = 0;    // e.g., 10ms
+    volatile uint32_t ulTotalSubFrames = 0;      // e.g., 10 slots
 
-/* Configuration Function (Called by timeline_scheduler.c) */
-void vConfigureTimerForTimeline(uint32_t ulDuration, uint32_t ulTotal) {
-    ulSubFrameDuration = ulDuration;
-    ulTotalSubFrames = ulTotal;
-    ulGlobalTimeInFrame = 0;
-    ulCurrentSubFrameIndex = 0;
-}
-/* -------------------------------------END--------------------------------------- */
+    /* Configuration Function (Called by timeline_scheduler.c) */
+    void vConfigureTimerForTimeline(uint32_t ulDuration, uint32_t ulTotal) {
+        ulSubFrameDuration = ulDuration;
+        ulTotalSubFrames = ulTotal;
+        ulGlobalTimeInFrame = 0;
+        ulCurrentSubFrameIndex = 0;
+    }
+
+#endif
+
+/*----------------------------END----------------------------*/
 
 
 
@@ -4697,26 +4701,32 @@ BaseType_t xTaskIncrementTick( void )
     #endif /* #if ( configUSE_PREEMPTION == 1 ) && ( configNUMBER_OF_CORES > 1 ) */
 
 
-    /* --- ---------------------------TIMELINE SCHEDULER UPDATE START ---------------------- */
-    /* Only count if the scheduler is actually configured */
-    if (ulSubFrameDuration > 0) 
-    {
-        ulGlobalTimeInFrame++;   // Same as xTickCount in FreeRTOS
+    /*-----------------------TIMELINE SCHEDULER UPDATE START---------------------*/
+    #if(configUSE_PRECISE_SCHEDULER == 1)
 
-        /* Check for Sub-Frame Rollover */
-        if ((ulGlobalTimeInFrame % ulSubFrameDuration) == 0) 
+        /* Only count if the scheduler is actually configured */
+        if (ulSubFrameDuration > 0) 
         {
-            ulCurrentSubFrameIndex++;
-        }
+            ulGlobalTimeInFrame++;   // Same as xTickCount in FreeRTOS
 
-        /* Check for Major Frame Rollover (Reset) */
-        if (ulCurrentSubFrameIndex >= ulTotalSubFrames) 
-        {
-            ulGlobalTimeInFrame = 0;
-            ulCurrentSubFrameIndex = 0;
+            /* Check for Sub-Frame Rollover */
+            if ((ulGlobalTimeInFrame % ulSubFrameDuration) == 0) 
+            {
+                ulCurrentSubFrameIndex++;
+            }
+
+            /* Check for Major Frame Rollover */
+            if (ulCurrentSubFrameIndex >= ulTotalSubFrames) 
+            {
+                ulGlobalTimeInFrame = 0;
+                ulCurrentSubFrameIndex = 0;
+                extern void vResetTimelineMajorFrame(void);
+                vResetTimelineMajorFrame();
+            }
         }
-    }
-    /* -------------------------------TIMELINE SCHEDULER UPDATE END ----------------------- */
+    
+    #endif
+    /*-----------------------TIMELINE SCHEDULER UPDATE END---------------------*/
 
 
     traceENTER_xTaskIncrementTick();
@@ -4958,6 +4968,17 @@ BaseType_t xTaskIncrementTick( void )
     }
 
     traceRETURN_xTaskIncrementTick( xSwitchRequired );
+
+    #if(configUSE_PRECISE_SCHEDULER == 1)
+
+        extern BaseType_t xUpdateTimelineScheduler(void);
+        BaseType_t xUpdateResult = xUpdateTimelineScheduler();
+
+        if(xUpdateResult == pdTRUE){
+            xSwitchRequired = pdTRUE ;
+        }
+
+    #endif
 
     return xSwitchRequired;
 }
