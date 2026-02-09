@@ -13,12 +13,20 @@ typedef enum {
     TASK_DEADLINE_MISSED
 } TimelineTaskStatus_t;
 
-
 //Define the Task Types
 typedef enum {
     HARD_RT,   // Must start/end exactly on time. Killed if late.Start other tasks if terminated earlier than deadline
     SOFT_RT    // Runs only if CPU is idle.
 } TaskType_t;
+
+/* Define the Error Codes */
+typedef enum {
+	SCHED_VALID = 0,
+	ERR_INVALID_TIME, // Start >= End
+	ERR_OUT_OF_BOUNDS, // End > Subframe Duration
+	ERR_OVERLAP, // 2 HRT tasks overlap
+	ERR_INVALID_SF // non-existing sub-frame id!
+} SchedError_t;
 
 /* Define the Configuration Structure 
    This is what the user fills out in main.c to define their plan. */
@@ -39,25 +47,20 @@ typedef struct {
 } TimelineTaskConfig_t;
 
 
-/* 3. This function will verify the table and set up the OS */
+/* Verifies the table and sets up the OS */
 void vStartTimelineScheduler(TimelineTaskConfig_t *pxScheduleTable, 
                              uint32_t ulTableSize, 
                              uint32_t ulSubFrameDurationMs, 
                              uint32_t ulTotalSubFrames);
 
+/* Converts absolute times to relative and checks for frame boundary violations */
+SchedError_t xPreprocessSchedule(TimelineTaskConfig_t *pxSchedule, 
+                                 uint32_t uxTaskCount, 
+                                 uint32_t ulSubFrameDuration);
 
-                             
+
 BaseType_t xUpdateTimelineScheduler(void);
 void vResetTimelineMajorFrame(void) ;
-
-
-/* 4. Error codes for xValidateSchedule function */
-typedef enum {
-	SCHED_VALID = 0,
-	ERR_INVALID_TIME, // Start >= End
-	ERR_OUT_OF_BOUNDS, // End > Subframe Duration
-	ERR_OVERLAP, // 2 HRT tasks overlap
-	ERR_INVALID_SF // non-existing sub-frame id!
-} SchedError_t;                            
+                          
 
 #endif /* TIMELINE_SCHEDULER_H */

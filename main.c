@@ -16,6 +16,9 @@ void vTask1(void *pvParams) {
 void vTask2(void *pvParams) { 
     
 }
+void vTask3(void *pvParams) { 
+    
+}
 
 // These are not used yet?
 TaskHandle_t TASK1 ;
@@ -24,9 +27,10 @@ TaskHandle_t TASK2 ;
 
 /* The Schedule Table */
 static TimelineTaskConfig_t my_schedule[] = {
-    // Name      Func      Type  Start  End   Slot  Stack, xHandle, State
+    // Name     Func    Type     Start  End   Slot  Stack, xHandle, State
     { "TASK 1", vTask1, HARD_RT, 0,     5,    0,    128,   NULL,    TASK_NOT_STARTED },
-    { "TASK 2", vTask2, HARD_RT, 5,     10,   0,    128,   NULL,    TASK_NOT_STARTED }
+    { "TASK 2", vTask2, HARD_RT, 5,     10,   0,    128,   NULL,    TASK_NOT_STARTED },
+    { "TASK 3", vTask3, HARD_RT, 12,     15,   0,    128,  NULL,    TASK_NOT_STARTED }
 };
 
 int main(void)
@@ -36,11 +40,13 @@ int main(void)
     uint32_t subFrameCount = MAJOR_FRAME_DURATION_MS / MINOR_FRAME_DURATION_MS;
     uint32_t numTasks = sizeof(my_schedule)/sizeof(my_schedule[0]);
 
-    if(xValidateSchedule(my_schedule, numTasks, MINOR_FRAME_DURATION_MS, subFrameCount) == SCHED_VALID) //if the table valid proceed...
+    if (xPreprocessSchedule(my_schedule, numTasks, MINOR_FRAME_DURATION_MS) == SCHED_VALID)
     {
-	/* Initialize your Timeline Scheduler */
-        // Pass the array, the number of tasks (2), subframe size (10ms), total slots (1)
-    	vStartTimelineScheduler(my_schedule, numTasks, MINOR_FRAME_DURATION_MS, subFrameCount);
+        if(xValidateSchedule(my_schedule, numTasks, MINOR_FRAME_DURATION_MS, subFrameCount) == SCHED_VALID)
+        {
+            // Pass the array, the number of tasks (2), subframe size (10ms), total slots (1)
+            vStartTimelineScheduler(my_schedule, numTasks, MINOR_FRAME_DURATION_MS, subFrameCount);
+        }
     }
     
     while(1){
