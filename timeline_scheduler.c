@@ -88,6 +88,43 @@ void vSupervisorTask(void *pvParameters){
     }
 }
 
+/* Calculate subframes, convert absolute time to relative, complain if crossing boundaries */
+SchedError_t xPreprocessSchedule(TimelineTaskConfig_t *pxSchedule, 
+                                 uint32_t uxTaskCount, 
+                                 uint32_t ulSubFrameDuration)
+{
+    for(uint32_t i = 0; i < uxTaskCount; i++)
+    {
+        uint32_t ulStart = pxSchedule[i].ulStart_time_ms;
+        uint32_t ulEnd = pxSchedule[i].ulEnd_time_ms;
+
+        // Calculate which frame the start and end belong to
+        uint32_t ulStartFrame = ulStart / ulSubFrameDuration;
+        // (ulEnd - 1) handles the exact boundary case.
+        uint32_t ulEndFrame = (ulEnd == 0) ? 0 : (ulEnd - 1) / ulSubFrameDuration;
+
+        // CHECK: Do they belong to different frames?
+        if (ulStartFrame != ulEndFrame) {
+            // Error: Task straddles a boundary (e.g., 8ms to 12ms)
+            return ERR_OUT_OF_BOUNDS; 
+        }
+
+        pxSchedule[i].ulSubframe_id = ulStartFrame;
+
+        // Convert Absolute Start to Relative Start
+        pxSchedule[i].ulStart_time_ms = ulStart % ulSubFrameDuration;
+
+        // Convert Absolute End to Relative End
+        uint32_t mod_end = ulEnd % ulSubFrameDuration;
+        if (mod_end == 0 && ulEnd != 0) {
+            pxSchedule[i].ulEnd_time_ms = ulSubFrameDuration;
+        } else {
+            pxSchedule[i].ulEnd_time_ms = mod_end;
+        }
+    }
+
+    return SCHED_VALID;
+}
 
 /* The main Scheduler Function*/
 void vStartTimelineScheduler(TimelineTaskConfig_t *pxScheduleTable, 
@@ -115,25 +152,25 @@ void vStartTimelineScheduler(TimelineTaskConfig_t *pxScheduleTable,
     pxSubframeTable = (SubFrameList_t *)pvPortMalloc(sizeof(SubFrameList_t) * ulTotalSubFrames);
 
     // Initialize subframe table
-    for (int i = 0 ; i < ulTotalSubFrames ; i++) {
+    for (uint32_t i = 0 ; i < ulTotalSubFrames ; i++) {
         pxSubframeTable[i].ulTaskCount = 0;
         pxSubframeTable[i].FrameTasks = NULL;
     }
 
     // Calculate the number of tasks for each subframe
-    for (int i = 0 ; i < ulTableSize ; i++) {
+    for (uint32_t i = 0 ; i < ulTableSize ; i++) {
         uint32_t sub_index = pxScheduleTable[i].ulSubframe_id ;
         pxSubframeTable[sub_index].ulTaskCount++;
     }
 
     // Fill the ppTasks
-    for (int i = 0 ; i < ulTotalSubFrames ; i++) {
+    for (uint32_t i = 0 ; i < ulTotalSubFrames ; i++) {
         if (pxSubframeTable[i].ulTaskCount > 0){
             pxSubframeTable[i].FrameTasks = (TimelineTaskConfig_t**)pvPortMalloc(sizeof(TimelineTaskConfig_t *) * pxSubframeTable[i].ulTaskCount);
 
             uint32_t index = 0;
 
-            for (int j = 0 ; j < ulTableSize ; j++){
+            for (uint32_t j = 0 ; j < ulTableSize ; j++){
                 if(i == pxScheduleTable[j].ulSubframe_id){ // If the IDs match, copy the structure to FrameTask
 
                     pxSubframeTable[i].FrameTasks[index] = &pxScheduleTable[j];
@@ -149,7 +186,7 @@ void vStartTimelineScheduler(TimelineTaskConfig_t *pxScheduleTable,
     // we received from main.c (we create it using xTaskCreate() in which all the HRTs have the same priority)
 
     UBaseType_t uxPriority ;
-    for (int i = 0 ; i < ulTableSize ; i++){
+    for (uint32_t i = 0 ; i < ulTableSize ; i++){
 
         if (pxScheduleTable[i].type == HARD_RT){
             uxPriority = HRT_PRIORITY;
@@ -193,7 +230,7 @@ void vStartTimelineScheduler(TimelineTaskConfig_t *pxScheduleTable,
     );
 
     // We should check if there is any task at time = 0
-    for (int i = 0 ; i < pxSubframeTable[0].ulTaskCount ; i++){
+    for (uint32_t i = 0 ; i < pxSubframeTable[0].ulTaskCount ; i++){
         if(pxSubframeTable[0].FrameTasks[i]->ulStart_time_ms == 0){
             // We have to run this task
             pxSubframeTable[0].FrameTasks[i]->state = TASK_RUNNING ;
@@ -213,9 +250,13 @@ BaseType_t xUpdateTimelineScheduler(void){
     // Extern global variables from task.c
     extern volatile uint32_t ulCurrentSubFrameIndex;
     extern volatile uint32_t ulGlobalTimeInFrame;
+    extern volatile uint32_t ulSubFrameDuration; // Need this for modulo
 
     // Define a flag to notify xTaskIncrementTick() for context switching
     BaseType_t xContextSwitchRequired = pdFALSE;
+
+    // Convert global time (e.g. 12ms) to relative time (2ms)
+    uint32_t ulTimeInSubFrame = ulGlobalTimeInFrame % ulSubFrameDuration;
 
     // Extract tasks from current subframe
     SubFrameList_t *pxCurrentSubframeTasks = &pxSubframeTable[ulCurrentSubFrameIndex];
@@ -226,15 +267,13 @@ BaseType_t xUpdateTimelineScheduler(void){
         // We will do this later...
     }*/
 
-
-
     for (uint32_t i = 0 ; i < pxCurrentSubframeTasks->ulTaskCount ; i++){
 
         // Obtain first task of current subframe
         TimelineTaskConfig_t *pxTask = pxCurrentSubframeTasks->FrameTasks[i] ;
 
         // Check for running
-        if(pxTask->ulStart_time_ms == ulGlobalTimeInFrame){
+        if(pxTask->ulStart_time_ms == ulTimeInSubFrame){
 
             pxTask->state = TASK_RUNNING ;
             if(xTaskResumeFromISR(pxTask->xHandle) == pdTRUE){
@@ -243,7 +282,7 @@ BaseType_t xUpdateTimelineScheduler(void){
         }
 
         // Check for deadline
-        if(pxTask->ulEnd_time_ms == ulGlobalTimeInFrame){
+        if(pxTask->ulEnd_time_ms == ulTimeInSubFrame){
             
             if (pxTask->state == TASK_DONE){
                 // The task finished on time
