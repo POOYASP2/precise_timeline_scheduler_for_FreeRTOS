@@ -5,18 +5,20 @@
 #include "../../main.c"
 #undef main
 
-/* QEMU semihosting SYS_EXIT */
+/* QEMU semihosting SYS_EXIT_EXT */
 static inline void qemu_exit(int status)
 {
+    volatile int params[2] = { 0x20026, status }; // ADP_Stopped_ApplicationExit
     __asm volatile (
-        "mov r0, #0x18\n"
+        "mov r0, #0x20\n"     // SYS_EXIT_EXT
         "mov r1, %0\n"
         "bkpt #0xAB\n"
         :
-        : "r"(status)
-        : "r0", "r1"
+        : "r"(params)
+        : "r0", "r1", "memory"
     );
 }
+
 
 int main(void)
 {
