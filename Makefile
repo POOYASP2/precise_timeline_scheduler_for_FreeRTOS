@@ -17,7 +17,7 @@ MACHINE = mps2-an386
 CPU_QEMU = cortex-m4
 
 # Flags: -nographic (no window), -serial mon:stdio (UART output to terminal)
-QEMU_FLAGS = -M $(MACHINE) -cpu $(CPU_QEMU) -kernel $(ELF) -nographic -serial mon:stdio
+QEMU_FLAGS = -M $(MACHINE) -cpu $(CPU_QEMU) -kernel $(ELF) -nographic -monitor none -serial stdio
 # Debug Flags: -S (freeze on startup), -s (listen on TCP 1234)
 QEMU_FLAGS_DBG = -S -s
 
