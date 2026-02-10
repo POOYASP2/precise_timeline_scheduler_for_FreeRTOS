@@ -17,4 +17,5 @@ Inside the testing directory there is another Makefile that runs the root Makefi
 
 Use 'make clean' to clean any compiled objects.
 Use 'make list' to see the list of all tests.
-Use 'make tests' to run all tests (clean before testing).
+Use 'make all' to run all tests.
+Use 'make test TEST=/example/test_example.c to run a single test.
