@@ -1,28 +1,29 @@
+#include <stdio.h>
 #include "test_common.h"
 
-#include "FreeRTOS.h"
-#include "task.h"
+#define main app_main
+#include "../../main.c"
+#undef main
 
-static volatile test_result_t g_result = TEST_RUNNING;
-
-void vTestInit(void)
+/* QEMU semihosting SYS_EXIT */
+static inline void qemu_exit(int status)
 {
-    g_result = TEST_RUNNING;
+    __asm volatile (
+        "mov r0, #0x18\n"
+        "mov r1, %0\n"
+        "bkpt #0xAB\n"
+        :
+        : "r"(status)
+        : "r0", "r1"
+    );
 }
 
-test_result_t xTestGetResult(void)
+int main(void)
 {
-    return g_result;
-}
+    test_result_t r = run_test();
 
-void vTestPass(void)
-{
-    g_result = TEST_PASS;
-    taskDISABLE_INTERRUPTS();
-}
+    //Test pass is 0, Test fail is 1
+    qemu_exit(r);
 
-void vTestFail(void)
-{
-    g_result = TEST_FAIL;
-    taskDISABLE_INTERRUPTS();
+    for (;;);
 }

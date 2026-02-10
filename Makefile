@@ -17,7 +17,7 @@ MACHINE = mps2-an386
 CPU_QEMU = cortex-m4
 
 # Flags: -nographic (no window), -serial mon:stdio (UART output to terminal)
-QEMU_FLAGS = -M $(MACHINE) -cpu $(CPU_QEMU) -kernel $(ELF) -nographic -serial mon:stdio
+QEMU_FLAGS = -M $(MACHINE) -cpu $(CPU_QEMU) -kernel $(ELF) -nographic -semihosting -serial mon:stdio
 # Debug Flags: -S (freeze on startup), -s (listen on TCP 1234)
 QEMU_FLAGS_DBG = -S -s
 
@@ -85,8 +85,17 @@ SOURCES += \
     $(KERNEL_DIR)/portable/MemMang/heap_4.c
 
 # 3. The Application
+SOURCES += timeline_scheduler.c
+
+USE_APP_MAIN ?= 1
+ifeq ($(USE_APP_MAIN),1)
 SOURCES += main.c \
-           timeline_scheduler.c
+           $(EXTRA_SOURCES)
+endif
+
+#this is for mainly testing
+EXTRA_SOURCES ?=
+SOURCES += $(EXTRA_SOURCES)
 
 # -----------------------------------------------------------------------------
 # Compiler Flags

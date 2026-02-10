@@ -1,13 +1,17 @@
-//to avoid multiple definition errors
 #pragma once
 
-typedef enum {
-    TEST_RUNNING = 0,
-    TEST_PASS,
-    TEST_FAIL
-} test_result_t;
+#define TEST_PASS 0
+#define TEST_FAIL 1
 
-void vTestInit(void);
-void vTestPass(void);
-void vTestFail(void);
-test_result_t xTestGetResult(void);
+typedef int test_result_t;
+
+test_result_t run_test(void);
+
+#define TEST_ASSERT(cond)                \
+    do {                                 \
+        if (!(cond)) {                   \
+            return TEST_FAIL;            \
+        }                                \
+    } while (0)
+
+
