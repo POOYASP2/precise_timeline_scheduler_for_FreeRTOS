@@ -1,4 +1,3 @@
-/* trace.c */
 #include "FreeRTOS.h"
 #include "task.h"
 #include "queue.h"
@@ -57,29 +56,18 @@ void vTraceInit(void)
 {
     xTraceQueue = xQueueCreate(TRACE_QUEUE_LEN, sizeof(TraceLog_t));
     ulDropped = 0;
+
+    if (xTraceQueue == NULL) {
+        UART_printf("TRACE: queue alloc FAILED\r\n");
+        for (;;) {}
+    } else {
+        UART_printf("TRACE: queue alloc OK\r\n");
+    }
 }
 
 uint32_t TraceGetDropped(void)
 {
     return ulDropped;
-}
-
-/* Compatibility API: task-context minimal record */
-void TracePush(uint8_t taskId, TraceEvent_t event)
-{
-    if (xTraceQueue == NULL) return;
-
-    TraceLog_t log;
-    log.tick     = xTaskGetTickCount();
-    log.frame_ms = 0;
-    log.subframe = 0;
-    log.taskId   = taskId;
-    log.event    = (uint8_t)event;
-    log.info16   = 0;
-
-    if (xQueueSend(xTraceQueue, &log, 0) != pdPASS) {
-        ulDropped++;
-    }
 }
 
 /* Compatibility API: ISR-context minimal record */
@@ -163,16 +151,18 @@ void vLoggingTask(void *pvParameters)
     TraceLog_t r;
     char msg[112];
     char num32[16];
-    char num16_a[8];
-    char num16_b[8];
+    char num16_t[8];
+    char num16_info[8];
+    char num16_sf[8];
 
     for (;;)
     {
         if (xQueueReceive(xTraceQueue, &r, portMAX_DELAY) == pdPASS)
         {
             u32_to_dec(num32, (uint32_t)r.tick);
-            u16_to_dec(num16_a, r.frame_ms);
-            u16_to_dec(num16_b, r.info16);
+            u16_to_dec(num16_t, r.frame_ms);
+            u16_to_dec(num16_info, r.info16);
+            u16_to_dec(num16_sf, (uint16_t)r.subframe);
 
             const char *ev = "";
             if      (r.event == TRACE_RELEASE)       ev = "RELEASE";
@@ -189,16 +179,13 @@ void vLoggingTask(void *pvParameters)
             msg[k++] = ']';
             msg[k++] = ' ';
 
-            /* Optional timeline fields if provided */
-            if (r.frame_ms != 0 || r.subframe != 0) {
-                msg[k++] = 's'; msg[k++] = 'f'; msg[k++] = '=';
-                msg[k++] = (char)('0' + (r.subframe % 10u));
-                msg[k++] = ' ';
-                msg[k++] = 't'; msg[k++] = '=';
-                for (int i = 0; num16_a[i] != '\0' && k < (int)sizeof(msg) - 1; i++) msg[k++] = num16_a[i];
-                msg[k++] = 'm'; msg[k++] = 's';
-                msg[k++] = ' ';
-            }
+            msg[k++] = 's'; msg[k++] = 'f'; msg[k++] = '=';
+            for (int i = 0; num16_sf[i] != '\0' && k < (int)sizeof(msg) - 1; i++) msg[k++] = num16_sf[i];
+            msg[k++] = ' ';
+            msg[k++] = 't'; msg[k++] = '=';
+            for (int i = 0; num16_t[i] != '\0' && k < (int)sizeof(msg) - 1; i++) msg[k++] = num16_t[i];
+            msg[k++] = 'm'; msg[k++] = 's';
+            msg[k++] = ' ';
 
             /* Task label */
             if (r.taskId == 0xFFu) {
@@ -216,7 +203,7 @@ void vLoggingTask(void *pvParameters)
                 msg[k++] = ' ';
                 msg[k++] = '(';
                 msg[k++] = 'i'; msg[k++] = 'n'; msg[k++] = 'f'; msg[k++] = 'o'; msg[k++] = '=';
-                for (int i = 0; num16_b[i] != '\0' && k < (int)sizeof(msg) - 1; i++) msg[k++] = num16_b[i];
+                for (int i = 0; num16_info[i] != '\0' && k < (int)sizeof(msg) - 1; i++) msg[k++] = num16_info[i];
                 msg[k++] = ')';
             }
 

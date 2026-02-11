@@ -1,4 +1,3 @@
-/* trace.h */
 #ifndef TRACE_H
 #define TRACE_H
 
@@ -36,9 +35,6 @@ typedef struct
 
 void vTraceInit(void);
 uint32_t TraceGetDropped(void);
-
-/* Task-context push (minimal record) */
-void TracePush(uint8_t taskId, TraceEvent_t event);
 
 /* ISR-context push (minimal record) */
 void TracePushFromISR(uint8_t taskId,
