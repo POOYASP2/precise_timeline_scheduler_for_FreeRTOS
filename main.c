@@ -4,8 +4,8 @@
 #include "trace.h"
 #include "timeline_scheduler.h"
 
-#define MAJOR_FRAME_DURATION_MS 100
-#define MINOR_FRAME_DURATION_MS 10
+#define MAJOR_FRAME_DURATION_MS 5000
+#define MINOR_FRAME_DURATION_MS 1000
 
 SchedError_t xValidateSchedule(const TimelineTaskConfig_t *pxSchedule,
                                uint32_t uxTaskCount,
@@ -16,7 +16,7 @@ SchedError_t xValidateSchedule(const TimelineTaskConfig_t *pxSchedule,
 static void vTask1(void *pvParams)
 {
     (void)pvParams;
-    for (volatile uint32_t i = 0; i < 20000; i++)
+    for (volatile uint32_t i = 0; i < 350; i++)
     {
         __asm volatile("nop");
     }
@@ -25,7 +25,7 @@ static void vTask1(void *pvParams)
 static void vTask2(void *pvParams)
 {
     (void)pvParams;
-    for (volatile uint32_t i = 0; i < 40000; i++)
+    for (volatile uint32_t i = 0; i < 400; i++)
     {
         __asm volatile("nop");
     }
@@ -33,8 +33,9 @@ static void vTask2(void *pvParams)
 
 /* Schedule table */
 static TimelineTaskConfig_t my_schedule[] = {
-    {"TASK 1", vTask1, HARD_RT, 0, 5, 0, 256, 0, NULL, TASK_NOT_STARTED},
-    {"TASK 2", vTask2, HARD_RT, 5, 10, 0, 256, 1, NULL, TASK_NOT_STARTED},
+    {"TASK 1", vTask1, HARD_RT, 0, 50, 0, 256, 0, NULL, TASK_NOT_STARTED},
+    {"TASK 2", vTask2, HARD_RT, 200, 500, 0, 256, 1, NULL, TASK_NOT_STARTED},
+    {"TASK 3", vTask2, HARD_RT, 550, 600, 0, 256, 2, NULL, TASK_NOT_STARTED},
 };
 
 int main(void)
