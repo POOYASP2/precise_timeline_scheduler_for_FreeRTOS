@@ -42,6 +42,8 @@ typedef struct {
     
     uint16_t usStackSize;       // Stack Size (Standard FreeRTOS param)
 
+    uint8_t  taskId;
+
     TaskHandle_t xHandle;       // Scheduler will write this later
     volatile TimelineTaskStatus_t state ;
 } TimelineTaskConfig_t;

@@ -1,6 +1,7 @@
 #include "timeline_scheduler.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include "trace.h"
 
 /* Definitions */
 #define HRT_PRIORITY (tskIDLE_PRIORITY + 2)
@@ -8,63 +9,82 @@
 
 
 // A structure for single subframe to store the tasks
-typedef struct {
-    uint32_t ulTaskCount;           // How many tasks in this sub-frame
+typedef struct
+{
+    uint32_t ulTaskCount;              // How many tasks in this sub-frame
     TimelineTaskConfig_t **FrameTasks; // Array of pointers to the tasks
 } SubFrameList_t;
 
 SubFrameList_t *pxSubframeTable = NULL;
 
-
-//Supervisor Variables
+// Supervisor Variables
 static TaskHandle_t xSupervisorHandle = NULL;
 static volatile TimelineTaskConfig_t *pxTaskToReset = NULL; // pointer to structure
-
 
 /* Global variables to hold the schedule state */
 static TimelineTaskConfig_t *pxCurrentSchedule = NULL;
 static uint32_t ulScheduleSize = 0;
 static uint32_t ulSubFrameSize = 0;
 
-
-void vTaskWrapper(void *pvParameters){
-
+void vTaskWrapper(void *pvParameters)
+{
     TimelineTaskConfig_t *pxTask = (TimelineTaskConfig_t *)pvParameters;
-    
-    while(1){
-        // Run the related function to the task
-        if (pxTask->function != NULL) {
+
+    /* TaskId mapping: assume schedule index stored elsewhere is not available.
+       Quick approach: use (task_name[5] - '1') is fragile.
+       Better: add a field in config for stable id.
+       For now: use 0 for TASK1, 1 for TASK2 based on pointer match is not possible here.
+       So we log with taskId=0xEE as "unknown" until you add an id field.
+    */
+    const uint8_t taskId = 0xEE;
+
+    for (;;)
+    {
+        if (pxTask->function != NULL)
+        {
             pxTask->function(NULL);
         }
 
-        pxTask->state = TASK_DONE ;     // Update state to notify scheduler
-        // get tick count here and fill the queue for logger (Here we can get ulGlobalTimeInFrame)
-        // After finishing the job, we wait here until the scheduler Resumes us again
+        pxTask->state = TASK_DONE;
+
+        /* log completion (frame/subframe from globals) */
+        extern volatile uint32_t ulCurrentSubFrameIndex;
+        extern volatile uint32_t ulGlobalTimeInFrame;
+
+        TracePushTimeline(pxTask->taskId,
+                          TRACE_COMPLETE,
+                          (uint16_t)ulGlobalTimeInFrame,
+                          (uint8_t)ulCurrentSubFrameIndex,
+                          0);
+
         vTaskSuspend(NULL);
     }
-
 }
 
+void vSupervisorTask(void *pvParameters)
+{
+    (void)pvParameters;
 
-void vSupervisorTask(void *pvParameters){
-    (void)pvParameters ;
-
-    while(1){
+    while (1)
+    {
 
         // Wait until notified by scheduler
         ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 
-        if (pxTaskToReset != NULL){
+        if (pxTaskToReset != NULL)
+        {
 
-            vTaskDelete(pxTaskToReset->xHandle);   // Kill the task
-        
+            vTaskDelete(pxTaskToReset->xHandle); // Kill the task
+
             // Recreate the task
             BaseType_t uxPriority;
 
-            if (pxTaskToReset->type == HARD_RT){
+            if (pxTaskToReset->type == HARD_RT)
+            {
                 uxPriority = HRT_PRIORITY;
             }
-            else{
+            else
+            {
                 uxPriority = SRT_PRIORITY;
             }
 
@@ -74,10 +94,10 @@ void vSupervisorTask(void *pvParameters){
                 pxTaskToReset->usStackSize,
                 (void *)pxTaskToReset,
                 uxPriority,
-                (TaskHandle_t *const)&pxTaskToReset->xHandle
-            );
+                (TaskHandle_t *const)&pxTaskToReset->xHandle);
 
-            if(pxTaskToReset->xHandle != NULL){
+            if (pxTaskToReset->xHandle != NULL)
+            {
                 // Immediately suspend the task
                 vTaskSuspend(pxTaskToReset->xHandle);
             }
@@ -127,10 +147,10 @@ SchedError_t xPreprocessSchedule(TimelineTaskConfig_t *pxSchedule,
 }
 
 /* The main Scheduler Function*/
-void vStartTimelineScheduler(TimelineTaskConfig_t *pxScheduleTable, 
-                             uint32_t ulTableSize, 
-                             uint32_t ulSubFrameDurationMs, 
-                             uint32_t ulTotalSubFrames) 
+void vStartTimelineScheduler(TimelineTaskConfig_t *pxScheduleTable,
+                             uint32_t ulTableSize,
+                             uint32_t ulSubFrameDurationMs,
+                             uint32_t ulTotalSubFrames)
 {
     // Step 1: Save the parameters (We will use later)
     pxCurrentSchedule = pxScheduleTable;
@@ -140,58 +160,62 @@ void vStartTimelineScheduler(TimelineTaskConfig_t *pxScheduleTable,
     // A function to configure the time-related parameters of our scheduler
     vConfigureTimerForTimeline(ulSubFrameDurationMs, ulTotalSubFrames);
 
-
-
     /* Step 2.1: Validate the Schedule (Placeholder) */
     // We will write the overlap checks here later. We will implement a system which checks all the params of
-    // the table and detects any possible errors. It's somehow sth like feasibility check   
-
-
+    // the table and detects any possible errors. It's somehow sth like feasibility check
 
     /*Step2.2: Create subframe table for better implementation*/
     pxSubframeTable = (SubFrameList_t *)pvPortMalloc(sizeof(SubFrameList_t) * ulTotalSubFrames);
 
     // Initialize subframe table
-    for (uint32_t i = 0 ; i < ulTotalSubFrames ; i++) {
+    for (int i = 0; i < ulTotalSubFrames; i++)
+    {
         pxSubframeTable[i].ulTaskCount = 0;
         pxSubframeTable[i].FrameTasks = NULL;
     }
 
     // Calculate the number of tasks for each subframe
-    for (uint32_t i = 0 ; i < ulTableSize ; i++) {
-        uint32_t sub_index = pxScheduleTable[i].ulSubframe_id ;
+    for (int i = 0; i < ulTableSize; i++)
+    {
+        uint32_t sub_index = pxScheduleTable[i].ulSubframe_id;
         pxSubframeTable[sub_index].ulTaskCount++;
     }
 
     // Fill the ppTasks
-    for (uint32_t i = 0 ; i < ulTotalSubFrames ; i++) {
-        if (pxSubframeTable[i].ulTaskCount > 0){
-            pxSubframeTable[i].FrameTasks = (TimelineTaskConfig_t**)pvPortMalloc(sizeof(TimelineTaskConfig_t *) * pxSubframeTable[i].ulTaskCount);
+    for (int i = 0; i < ulTotalSubFrames; i++)
+    {
+        if (pxSubframeTable[i].ulTaskCount > 0)
+        {
+            pxSubframeTable[i].FrameTasks = (TimelineTaskConfig_t **)pvPortMalloc(sizeof(TimelineTaskConfig_t *) * pxSubframeTable[i].ulTaskCount);
 
             uint32_t index = 0;
 
-            for (uint32_t j = 0 ; j < ulTableSize ; j++){
-                if(i == pxScheduleTable[j].ulSubframe_id){ // If the IDs match, copy the structure to FrameTask
+            for (int j = 0; j < ulTableSize; j++)
+            {
+                if (i == pxScheduleTable[j].ulSubframe_id)
+                { // If the IDs match, copy the structure to FrameTask
 
                     pxSubframeTable[i].FrameTasks[index] = &pxScheduleTable[j];
-                    index++ ;
+                    index++;
                 }
             }
         }
     }
 
-
     /* Step 3: We will loop through the table and call xTaskCreate here later. */
     // In this section, if there is no error in feasibility and scheduler table, we create tasks with the params
     // we received from main.c (we create it using xTaskCreate() in which all the HRTs have the same priority)
 
-    UBaseType_t uxPriority ;
-    for (uint32_t i = 0 ; i < ulTableSize ; i++){
+    UBaseType_t uxPriority;
+    for (int i = 0; i < ulTableSize; i++)
+    {
 
-        if (pxScheduleTable[i].type == HARD_RT){
+        if (pxScheduleTable[i].type == HARD_RT)
+        {
             uxPriority = HRT_PRIORITY;
         }
-        else{
+        else
+        {
             uxPriority = SRT_PRIORITY;
         }
 
@@ -199,17 +223,16 @@ void vStartTimelineScheduler(TimelineTaskConfig_t *pxScheduleTable,
             vTaskWrapper,
             pxScheduleTable[i].task_name,
             pxScheduleTable[i].usStackSize,
-            &pxScheduleTable[i],            // Pass the structure itself
+            &pxScheduleTable[i], // Pass the structure itself
             uxPriority,
-            &pxScheduleTable[i].xHandle      
-        );
+            &pxScheduleTable[i].xHandle);
 
-        if (pxScheduleTable[i].xHandle != NULL){
-            vTaskSuspend(pxScheduleTable[i].xHandle) ; // Immediately suspend the task
+        if (pxScheduleTable[i].xHandle != NULL)
+        {
+            vTaskSuspend(pxScheduleTable[i].xHandle); // Immediately suspend the task
         }
     }
 
-    
     /* Step 5: we have to design a function which decides about tasks*/
     // It loops through the scheduler table and switches to the most qualified task for executing. We will call this function
     // inside xTaskIncrementTick() function to decide about tasks every tick (1 ms)
@@ -218,7 +241,7 @@ void vStartTimelineScheduler(TimelineTaskConfig_t *pxScheduleTable,
     /* Step 6: Debug Print */
     // Use standard printf if it works in QEMU
     // printf("Scheduler Initialized! Total Tasks: %d\n", ulTableSize);
-    
+
     // Create Supervisor Task
     xTaskCreate(
         vSupervisorTask,
@@ -226,26 +249,26 @@ void vStartTimelineScheduler(TimelineTaskConfig_t *pxScheduleTable,
         configMINIMAL_STACK_SIZE,
         NULL,
         configMAX_PRIORITIES - 1,
-        &xSupervisorHandle
-    );
+        &xSupervisorHandle);
 
     // We should check if there is any task at time = 0
-    for (uint32_t i = 0 ; i < pxSubframeTable[0].ulTaskCount ; i++){
-        if(pxSubframeTable[0].FrameTasks[i]->ulStart_time_ms == 0){
+    for (int i = 0; i < pxSubframeTable[0].ulTaskCount; i++)
+    {
+        if (pxSubframeTable[0].FrameTasks[i]->ulStart_time_ms == 0)
+        {
             // We have to run this task
-            pxSubframeTable[0].FrameTasks[i]->state = TASK_RUNNING ;
+            pxSubframeTable[0].FrameTasks[i]->state = TASK_RUNNING;
 
             vTaskResume(pxSubframeTable[0].FrameTasks[i]->xHandle);
         }
     }
 
-
-
     /* Step 7: Start the Standard FreeRTOS Scheduler */
     vTaskStartScheduler();
 }
 
-BaseType_t xUpdateTimelineScheduler(void){
+BaseType_t xUpdateTimelineScheduler(void)
+{
 
     // Extern global variables from task.c
     extern volatile uint32_t ulCurrentSubFrameIndex;
@@ -267,50 +290,67 @@ BaseType_t xUpdateTimelineScheduler(void){
         // We will do this later...
     }*/
 
-    for (uint32_t i = 0 ; i < pxCurrentSubframeTasks->ulTaskCount ; i++){
+    for (uint32_t i = 0; i < pxCurrentSubframeTasks->ulTaskCount; i++)
+    {
 
         // Obtain first task of current subframe
-        TimelineTaskConfig_t *pxTask = pxCurrentSubframeTasks->FrameTasks[i] ;
+        TimelineTaskConfig_t *pxTask = pxCurrentSubframeTasks->FrameTasks[i];
 
         // Check for running
-        if(pxTask->ulStart_time_ms == ulTimeInSubFrame){
+        if ((pxTask->state == TASK_NOT_STARTED) &&
+    (pxTask->ulStart_time_ms == ulGlobalTimeInFrame))
+        {
+            pxTask->state = TASK_RUNNING;
 
-            pxTask->state = TASK_RUNNING ;
-            if(xTaskResumeFromISR(pxTask->xHandle) == pdTRUE){
-                xContextSwitchRequired = pdTRUE ;  // Force to context switch immediately
+            /* LOG: START */
+            TracePushTimelineFromISR(
+                pxTask->taskId,
+                TRACE_START,
+                (uint16_t)ulGlobalTimeInFrame,
+                (uint8_t)ulCurrentSubFrameIndex,
+                0,
+                NULL);
+
+            if (xTaskResumeFromISR(pxTask->xHandle) == pdTRUE)
+            {
+                xContextSwitchRequired = pdTRUE;
             }
         }
 
         // Check for deadline
-        if(pxTask->ulEnd_time_ms == ulTimeInSubFrame){
-            
-            if (pxTask->state == TASK_DONE){
-                // The task finished on time
-                // log the message to the Queue (Take the saved time from wrapper and log)
-            }
-            else if(pxTask->state == TASK_RUNNING){
+        if (pxTask->ulEnd_time_ms == ulGlobalTimeInFrame)
+        {
+            if (pxTask->state == TASK_RUNNING)
+            {
                 pxTask->state = TASK_DEADLINE_MISSED;
-                // Kill the task (Tell the supervisor to kill the task)
 
-                pxTaskToReset = pxTask ;
+                /* LOG: DEADLINE_MISS */
+                TracePushTimelineFromISR(
+                    pxTask->taskId, 
+                    TRACE_DEADLINE_MISS,
+                    (uint16_t)ulGlobalTimeInFrame,
+                    (uint8_t)ulCurrentSubFrameIndex,
+                    0,
+                    NULL);
+
+                pxTaskToReset = pxTask;
                 vTaskNotifyGiveFromISR(xSupervisorHandle, NULL);
-                xContextSwitchRequired = pdTRUE ;
+                xContextSwitchRequired = pdTRUE;
             }
         }
-
     }
 
     return xContextSwitchRequired;
 }
 
+void vResetTimelineMajorFrame(void)
+{
 
-void vResetTimelineMajorFrame(void) {
+    for (uint32_t i = 0; i < ulScheduleSize; i++)
+    {
 
-    for (uint32_t i = 0; i < ulScheduleSize; i++) {
-        
         TimelineTaskConfig_t *pxTask = (TimelineTaskConfig_t *)&pxCurrentSchedule[i];
-        
-        pxTask->state = TASK_NOT_STARTED;
 
+        pxTask->state = TASK_NOT_STARTED;
     }
 }
