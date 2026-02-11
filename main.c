@@ -21,8 +21,10 @@ static void vTask1(void *pvParams)
         __asm volatile("nop");
     }
 }
-void vTask3(void *pvParams) { 
-    
+
+void vTask3(void *pvParams)
+{
+    (void)pvParams;
 }
 
 static void vTask2(void *pvParams)
@@ -36,7 +38,7 @@ static void vTask2(void *pvParams)
 
 /* Schedule table */
 static TimelineTaskConfig_t my_schedule[] = {
-    {"TASK 1", vTask1, HARD_RT, 0, 50, 0, 256, 0, NULL, TASK_NOT_STARTED},
+    {"TASK 1", vTask1, HARD_RT, 10,   50,  0, 256, 0, NULL, TASK_NOT_STARTED},
     {"TASK 2", vTask2, HARD_RT, 200, 500, 0, 256, 1, NULL, TASK_NOT_STARTED},
     {"TASK 3", vTask2, HARD_RT, 550, 600, 0, 256, 2, NULL, TASK_NOT_STARTED},
 };
@@ -48,19 +50,6 @@ int main(void)
 
     /* init trace + start logging task */
     vTraceInit();
-    if (xPreprocessSchedule(my_schedule, numTasks, MINOR_FRAME_DURATION_MS) == SCHED_VALID)
-    {
-        if(xValidateSchedule(my_schedule, numTasks, MINOR_FRAME_DURATION_MS, subFrameCount) == SCHED_VALID)
-        {
-            // Pass the array, the number of tasks (2), subframe size (10ms), total slots (1)
-            vStartTimelineScheduler(my_schedule, numTasks, MINOR_FRAME_DURATION_MS, subFrameCount);
-        }
-    }
-    
-    while(1){
-        // infinite loop (never reach here)
-    };
-}
 
     xTaskCreate(vLoggingTask,
                 "logger",
@@ -72,24 +61,32 @@ int main(void)
     const uint32_t subFrameCount = MAJOR_FRAME_DURATION_MS / MINOR_FRAME_DURATION_MS;
     const uint32_t numTasks = (uint32_t)(sizeof(my_schedule) / sizeof(my_schedule[0]));
 
-    SchedError_t ok = xValidateSchedule(my_schedule, numTasks,
-                                        MINOR_FRAME_DURATION_MS,
-                                        subFrameCount);
-
-    if (ok != SCHED_VALID)
+    if (xPreprocessSchedule(my_schedule, numTasks, MINOR_FRAME_DURATION_MS) == SCHED_VALID)
     {
-        UART_printf("Schedule invalid\r\n");
+        if (xValidateSchedule(my_schedule, numTasks, MINOR_FRAME_DURATION_MS, subFrameCount) == SCHED_VALID)
+        {
+            // Pass the array, the number of tasks, subframe size, total subframes
+            vStartTimelineScheduler(my_schedule, numTasks, MINOR_FRAME_DURATION_MS, subFrameCount);
+        }
+        else
+        {
+            UART_printf("Schedule invalid\r\n");
+            for (;;)
+            {
+            }
+        }
+    }
+    else
+    {
+        UART_printf("Preprocess failed\r\n");
         for (;;)
         {
         }
     }
 
-    UART_printf("Starting timeline scheduler\r\n");
-    vStartTimelineScheduler(my_schedule, numTasks, MINOR_FRAME_DURATION_MS, subFrameCount);
-
-    UART_printf("Unexpected return\r\n");
-    for (;;)
+    while (1)
     {
+        // infinite loop (never reach here)
     }
 }
 
