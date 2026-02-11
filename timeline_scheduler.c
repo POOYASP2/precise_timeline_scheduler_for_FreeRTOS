@@ -108,6 +108,44 @@ void vSupervisorTask(void *pvParameters)
     }
 }
 
+/* Calculate subframes, convert absolute time to relative, complain if crossing boundaries */
+SchedError_t xPreprocessSchedule(TimelineTaskConfig_t *pxSchedule, 
+                                 uint32_t uxTaskCount, 
+                                 uint32_t ulSubFrameDuration)
+{
+    for(uint32_t i = 0; i < uxTaskCount; i++)
+    {
+        uint32_t ulStart = pxSchedule[i].ulStart_time_ms;
+        uint32_t ulEnd = pxSchedule[i].ulEnd_time_ms;
+
+        // Calculate which frame the start and end belong to
+        uint32_t ulStartFrame = ulStart / ulSubFrameDuration;
+        // (ulEnd - 1) handles the exact boundary case.
+        uint32_t ulEndFrame = (ulEnd == 0) ? 0 : (ulEnd - 1) / ulSubFrameDuration;
+
+        // CHECK: Do they belong to different frames?
+        if (ulStartFrame != ulEndFrame) {
+            // Error: Task straddles a boundary (e.g., 8ms to 12ms)
+            return ERR_OUT_OF_BOUNDS; 
+        }
+
+        pxSchedule[i].ulSubframe_id = ulStartFrame;
+
+        // Convert Absolute Start to Relative Start
+        pxSchedule[i].ulStart_time_ms = ulStart % ulSubFrameDuration;
+
+        // Convert Absolute End to Relative End
+        uint32_t mod_end = ulEnd % ulSubFrameDuration;
+        if (mod_end == 0 && ulEnd != 0) {
+            pxSchedule[i].ulEnd_time_ms = ulSubFrameDuration;
+        } else {
+            pxSchedule[i].ulEnd_time_ms = mod_end;
+        }
+    }
+
+    return SCHED_VALID;
+}
+
 /* The main Scheduler Function*/
 void vStartTimelineScheduler(TimelineTaskConfig_t *pxScheduleTable,
                              uint32_t ulTableSize,
@@ -235,9 +273,13 @@ BaseType_t xUpdateTimelineScheduler(void)
     // Extern global variables from task.c
     extern volatile uint32_t ulCurrentSubFrameIndex;
     extern volatile uint32_t ulGlobalTimeInFrame;
+    extern volatile uint32_t ulSubFrameDuration; // Need this for modulo
 
     // Define a flag to notify xTaskIncrementTick() for context switching
     BaseType_t xContextSwitchRequired = pdFALSE;
+
+    // Convert global time (e.g. 12ms) to relative time (2ms)
+    uint32_t ulTimeInSubFrame = ulGlobalTimeInFrame % ulSubFrameDuration;
 
     // Extract tasks from current subframe
     SubFrameList_t *pxCurrentSubframeTasks = &pxSubframeTable[ulCurrentSubFrameIndex];

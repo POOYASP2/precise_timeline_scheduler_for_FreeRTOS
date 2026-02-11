@@ -21,6 +21,9 @@ static void vTask1(void *pvParams)
         __asm volatile("nop");
     }
 }
+void vTask3(void *pvParams) { 
+    
+}
 
 static void vTask2(void *pvParams)
 {
@@ -45,6 +48,19 @@ int main(void)
 
     /* init trace + start logging task */
     vTraceInit();
+    if (xPreprocessSchedule(my_schedule, numTasks, MINOR_FRAME_DURATION_MS) == SCHED_VALID)
+    {
+        if(xValidateSchedule(my_schedule, numTasks, MINOR_FRAME_DURATION_MS, subFrameCount) == SCHED_VALID)
+        {
+            // Pass the array, the number of tasks (2), subframe size (10ms), total slots (1)
+            vStartTimelineScheduler(my_schedule, numTasks, MINOR_FRAME_DURATION_MS, subFrameCount);
+        }
+    }
+    
+    while(1){
+        // infinite loop (never reach here)
+    };
+}
 
     xTaskCreate(vLoggingTask,
                 "logger",
