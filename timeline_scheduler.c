@@ -51,7 +51,7 @@ void vTaskWrapper(void *pvParameters)
         extern volatile uint32_t ulCurrentSubFrameIndex;
         extern volatile uint32_t ulGlobalTimeInFrame;
 
-        TracePushTimeline(taskId,
+        TracePushTimeline(pxTask->taskId,
                           TRACE_COMPLETE,
                           (uint16_t)ulGlobalTimeInFrame,
                           (uint8_t)ulCurrentSubFrameIndex,
@@ -255,13 +255,14 @@ BaseType_t xUpdateTimelineScheduler(void)
         TimelineTaskConfig_t *pxTask = pxCurrentSubframeTasks->FrameTasks[i];
 
         // Check for running
-        if (pxTask->ulStart_time_ms == ulGlobalTimeInFrame)
+        if ((pxTask->state == TASK_NOT_STARTED) &&
+    (pxTask->ulStart_time_ms == ulGlobalTimeInFrame))
         {
             pxTask->state = TASK_RUNNING;
 
             /* LOG: START */
             TracePushTimelineFromISR(
-                (uint8_t)i, /* temporary taskId */
+                pxTask->taskId,
                 TRACE_START,
                 (uint16_t)ulGlobalTimeInFrame,
                 (uint8_t)ulCurrentSubFrameIndex,
@@ -277,18 +278,13 @@ BaseType_t xUpdateTimelineScheduler(void)
         // Check for deadline
         if (pxTask->ulEnd_time_ms == ulGlobalTimeInFrame)
         {
-            if (pxTask->state == TASK_DONE)
-            {
-                /* optional: LOG COMPLETE here if you want */
-                /* TracePushTimelineFromISR((uint8_t)i, TRACE_COMPLETE, ...); */
-            }
-            else if (pxTask->state == TASK_RUNNING)
+            if (pxTask->state == TASK_RUNNING)
             {
                 pxTask->state = TASK_DEADLINE_MISSED;
 
                 /* LOG: DEADLINE_MISS */
                 TracePushTimelineFromISR(
-                    (uint8_t)i, /* temporary taskId */
+                    pxTask->taskId, 
                     TRACE_DEADLINE_MISS,
                     (uint16_t)ulGlobalTimeInFrame,
                     (uint8_t)ulCurrentSubFrameIndex,
