@@ -10,7 +10,19 @@ Once the test is over, a special function is called automatically to exit qemu.
 In the dummy_tests directory there are some very simple examples.
 
 ## Tests
+### Input Validity
+These tests simply check the functions xPreprocessSchedule and xValidateSchedule used before starting the scheduler.
 
+The preprocess test checks:
+-a task always start and ends within a subframe's boundaries;
+-the assignment of subframes and their relative timeslots;
+-the special case where a end time coincides with a subframe boundary;
+
+The validate test checks:
+-valid start and end times (end must not be before or same as the start);
+-a task always start and ends within a subframe's boundaries (same a preprocess);
+-tasks use a valid subframe id;
+-the overlapping rules for tasks (hrt tasks cannot overlap, srt can).
 
 ## How to run
 Inside the testing directory there is another Makefile that runs the root Makefile to start qemu and then runs each test separately using the main() function defined in 'test_common.c'.

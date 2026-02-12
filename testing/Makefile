@@ -35,7 +35,7 @@ all:
 	if [ $$fail -eq 0 ]; then \
 		echo "ALL TESTS PASSED"; \
 	else \
-		echo "SOME TESTS FAILED"; \
+		echo "$$fail TESTS FAILED"; \
 	fi; \
 	exit 0
 
