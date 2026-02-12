@@ -36,7 +36,7 @@ void vTaskWrapper(void *pvParameters)
        For now: use 0 for TASK1, 1 for TASK2 based on pointer match is not possible here.
        So we log with taskId=0xEE as "unknown" until you add an id field.
     */
-    const uint8_t taskId = 0xEE;
+    const uint8_t taskId = pxTask->taskId;
 
     for (;;)
     {
@@ -274,12 +274,42 @@ BaseType_t xUpdateTimelineScheduler(void)
     extern volatile uint32_t ulCurrentSubFrameIndex;
     extern volatile uint32_t ulGlobalTimeInFrame;
     extern volatile uint32_t ulSubFrameDuration; // Need this for modulo
+    extern volatile uint32_t ulTotalSubFrames;
 
     // Define a flag to notify xTaskIncrementTick() for context switching
     BaseType_t xContextSwitchRequired = pdFALSE;
 
     // Convert global time (e.g. 12ms) to relative time (2ms)
     uint32_t ulTimeInSubFrame = ulGlobalTimeInFrame % ulSubFrameDuration;
+
+    // In boundaries, the deadline check for the task in previous subframe was ignored. So I add this line for the checking of boundaries
+    if (ulTimeInSubFrame == 0 && ulGlobalTimeInFrame > 0) {
+        
+        uint32_t ulPrevIndex = (ulCurrentSubFrameIndex == 0) ? (ulTotalSubFrames- 1) : (ulCurrentSubFrameIndex - 1);
+        SubFrameList_t *pxPrevBucket = &pxSubframeTable[ulPrevIndex];
+
+        for (uint32_t i = 0; i < pxPrevBucket->ulTaskCount; i++) {
+            TimelineTaskConfig_t *pxPrevTask = pxPrevBucket->FrameTasks[i];
+            
+            // Check against Duration (e.g. 1000)
+            if (pxPrevTask->ulEnd_time_ms == ulSubFrameDuration) {
+                if (pxPrevTask->state == TASK_RUNNING) {
+                    pxPrevTask->state = TASK_DEADLINE_MISSED;
+                    
+                    // Log using Absolute Time (ulGlobalTimeInFrame) for clarity
+                    TracePushTimelineFromISR(pxPrevTask->taskId, TRACE_DEADLINE_MISS, 
+                                             (uint16_t)ulGlobalTimeInFrame, (uint8_t)ulPrevIndex, 0, NULL);
+                    
+                    pxTaskToReset = pxPrevTask;
+                    vTaskNotifyGiveFromISR(xSupervisorHandle, NULL);
+                    xContextSwitchRequired = pdTRUE;
+                }
+            }
+        }
+    }
+
+
+
 
     // Extract tasks from current subframe
     SubFrameList_t *pxCurrentSubframeTasks = &pxSubframeTable[ulCurrentSubFrameIndex];
@@ -298,7 +328,7 @@ BaseType_t xUpdateTimelineScheduler(void)
 
         // Check for running
         if ((pxTask->state == TASK_NOT_STARTED) &&
-    (pxTask->ulStart_time_ms == ulGlobalTimeInFrame))
+            (pxTask->ulStart_time_ms == ulTimeInSubFrame))
         {
             pxTask->state = TASK_RUNNING;
 
@@ -318,7 +348,7 @@ BaseType_t xUpdateTimelineScheduler(void)
         }
 
         // Check for deadline
-        if (pxTask->ulEnd_time_ms == ulGlobalTimeInFrame)
+        if (pxTask->ulEnd_time_ms == ulTimeInSubFrame)
         {
             if (pxTask->state == TASK_RUNNING)
             {
