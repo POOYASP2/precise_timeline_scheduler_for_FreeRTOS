@@ -21,9 +21,6 @@ static void vTask1(void *pvParams)
         __asm volatile("nop");
     }
 }
-void vTask3(void *pvParams) { 
-    
-}
 
 void vTask3(void *pvParams)
 {

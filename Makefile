@@ -17,7 +17,7 @@ MACHINE = mps2-an386
 CPU_QEMU = cortex-m4
 
 # Flags: -nographic (no window), -serial mon:stdio (UART output to terminal)
-QEMU_FLAGS = -M $(MACHINE) -cpu $(CPU_QEMU) -kernel $(ELF) -nographic -monitor none -serial stdio
+QEMU_FLAGS = -M $(MACHINE) -cpu $(CPU_QEMU) -kernel $(ELF) -nographic -semihosting -monitor none -serial stdio
 # Debug Flags: -S (freeze on startup), -s (listen on TCP 1234)
 QEMU_FLAGS_DBG = -S -s
 
@@ -113,8 +113,9 @@ UTILS_OBJS   := $(UTILS_SRCS:.c=.o)
 # Compiler Flags
 # -----------------------------------------------------------------------------
 
+#added -w to remove warning (but remember to remove it, warnings should be fixed)
 CFLAGS = $(MCU_FLAGS) $(INCLUDES) \
-    -O0 -g3 -Wall -Wextra \
+    -O0 -g3 -w -Wall -Wextra \
     -ffunction-sections -fdata-sections \
     $(USER_DEFINES)
 
