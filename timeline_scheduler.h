@@ -46,6 +46,7 @@ typedef struct {
 
     TaskHandle_t xHandle;       // Scheduler will write this later
     volatile TimelineTaskStatus_t state ;
+    void *pxNextSRT;            // For SRTs: Each task points to next SRT task
 } TimelineTaskConfig_t;
 
 
