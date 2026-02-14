@@ -11,8 +11,8 @@
 #define LOGGER_PRIORITY                          (tskIDLE_PRIORITY + 3)
 #define SRT_PRIORITY                             (tskIDLE_PRIORITY + 2)
 
-#define MAJOR_FRAME_DURATION_MS                  5000
-#define MINOR_FRAME_DURATION_MS                  1000
+#define MAJOR_FRAME_DURATION_MS                  100
+#define MINOR_FRAME_DURATION_MS                  10
 
 // --------------------------------- END ----------------------------------------
 

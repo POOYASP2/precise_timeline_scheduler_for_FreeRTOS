@@ -126,8 +126,19 @@ void vTaskWrapper(void *pvParameters)
         {
             // Wait for Start Signal (Notify is given from scheduler OR previous task)
             ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+	    extern volatile uint32_t ulCurrentSubFrameIndex;
+	    extern volatile uint32_t ulGlobalTimeInFrame;
+
+	    TracePushTimeline(pxTask->taskId, TRACE_START, (uint16_t)ulGlobalTimeInFrame,
+						     (uint8_t)ulCurrentSubFrameIndex, 0);
 
             if (pxTask->function != NULL) pxTask->function(NULL);
+
+	    TracePushTimeline(pxTask->taskId,
+                            TRACE_COMPLETE,
+                            (uint16_t)ulGlobalTimeInFrame,
+                            (uint8_t)ulCurrentSubFrameIndex,
+                            0);
 
             // Wake the Next Task (if it exists)
             if (pxTask->pxNextSRT != NULL) 
