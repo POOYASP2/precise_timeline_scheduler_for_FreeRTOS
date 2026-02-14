@@ -4,16 +4,11 @@
 #include "trace.h"
 #include "timeline_scheduler.h"
 
-
-SchedError_t xValidateSchedule(const TimelineTaskConfig_t *pxSchedule,
-                               uint32_t uxTaskCount,
-                               uint32_t ulSubFrameDuration,
-                               uint32_t ulTotalSubFrames);
-
 // HRT tasks
 void vTask1(void *pvParams)
 {
     (void)pvParams;
+    UART_printf("HRT 1\n");
     for (volatile uint32_t i = 0; i < 50000; i++)
     {
         __asm volatile("nop");
@@ -23,11 +18,13 @@ void vTask1(void *pvParams)
 void vTask3(void *pvParams)
 {
     (void)pvParams;
+    UART_printf("HRT 3\n");
 }
 
 void vTask2(void *pvParams)
 {
     (void)pvParams;
+    UART_printf("HRT 2\n");
     for (volatile uint32_t i = 0; i < 400; i++)
     {
         __asm volatile("nop");
@@ -46,6 +43,43 @@ void vTaskSRT_B(void *pvParams) {
     UART_printf("SRT B\r\n");
 }
 
+/*
+ * ERROR HOOK
+ * Defined by the application to handle critical scheduler errors.
+ * This function is called by 'vStartTimelineScheduler' if validation fails.
+ *
+*/
+void vApplicationScheduleErrorHook(SchedError_t xError)
+{
+	UART_printf("\n!WARNING!\nScheduler Error detected!!\n");
+	//UART_printf("Error code: %d\n", xError);
+	UART_printf("\n-The system stopped-\n");
+
+	switch(xError)
+	{
+		case ERR_OVERLAP:
+            		UART_printf("Reason: HRT Task Overlap Detected!\r\n");
+            		break;
+            	case ERR_OUT_OF_BOUNDS:
+            		UART_printf("Reason: Task Duration Exceeds Subframe Limit!\r\n");
+            		break;
+        	case ERR_INVALID_SF:
+            		UART_printf("Reason: Invalid Subframe ID configured!\r\n");
+            		break;
+        	case ERR_INVALID_TIME:
+            		UART_printf("Reason: Task End-Time is before Start-Time!\r\n");
+            		break;
+        	case ERR_PREPROCESS_FAIL:
+            		UART_printf("Reason: Preprocessing Failed! (Check Task Boundaries or Frame logic)\r\n");
+            		break;
+		default:
+            		UART_printf("Reason: Unknown Error.\r\n");
+            		break;
+	}
+	// here lock the system with an infinite loop
+	taskDISABLE_INTERRUPTS();
+    	for(;;);
+}
 
 
 /* Schedule table */
@@ -76,80 +110,16 @@ int main(void)
     const uint32_t subFrameCount = MAJOR_FRAME_DURATION_MS / MINOR_FRAME_DURATION_MS;
     const uint32_t numTasks = (uint32_t)(sizeof(my_schedule) / sizeof(my_schedule[0]));
 
-    if (xPreprocessSchedule(my_schedule, numTasks, MINOR_FRAME_DURATION_MS) == SCHED_VALID)
-    {
-        if (xValidateSchedule(my_schedule, numTasks, MINOR_FRAME_DURATION_MS, subFrameCount) == SCHED_VALID)
-        {
-            // Pass the array, the number of tasks, subframe size, total subframes
-            vStartTimelineScheduler(my_schedule, numTasks, MINOR_FRAME_DURATION_MS, subFrameCount);
-        }
-        else
-        {
-            UART_printf("Schedule invalid\r\n");
-            for (;;)
-            {
-            }
-        }
-    }
-    else
-    {
-        UART_printf("Preprocess failed\r\n");
-        for (;;)
-        {
-        }
-    }
+    // Pass the array, the number of tasks, subframe size, total subframes
+    /*
+     * Start the Timeline Scheduler.
+     * Note: This function now handles validation internally using 'vApplicationScheduleErrorHook'.
+     * We pass the schedule array, size, minor frame duration and total frames.
+     */
+    vStartTimelineScheduler(my_schedule, numTasks, MINOR_FRAME_DURATION_MS, subFrameCount);
 
     while (1)
     {
         // infinite loop (never reach here)
     }
-}
-
-SchedError_t xValidateSchedule(const TimelineTaskConfig_t *pxSchedule,
-                               uint32_t uxTaskCount,
-                               uint32_t ulSubFrameDuration,
-                               uint32_t ulTotalSubFrames)
-{
-    for (uint32_t i = 0; i < uxTaskCount; i++)
-    {
-
-        if (pxSchedule[i].type == SOFT_RT)
-        {
-            continue; // Skip to next task, SRTs don't need time checks
-        }
-
-        if (pxSchedule[i].ulEnd_time_ms <= pxSchedule[i].ulStart_time_ms)
-        {
-            return ERR_INVALID_TIME;
-        }
-
-        if (pxSchedule[i].ulEnd_time_ms > ulSubFrameDuration ||
-            pxSchedule[i].ulStart_time_ms > ulSubFrameDuration)
-        {
-            return ERR_OUT_OF_BOUNDS;
-        }
-
-        if (pxSchedule[i].ulSubframe_id >= ulTotalSubFrames)
-        {
-            return ERR_INVALID_SF;
-        }
-
-        if (pxSchedule[i].type == HARD_RT)
-        {
-            for (uint32_t j = i + 1; j < uxTaskCount; j++)
-            {
-                if (pxSchedule[j].type == HARD_RT &&
-                    pxSchedule[i].ulSubframe_id == pxSchedule[j].ulSubframe_id)
-                {
-                    if ((pxSchedule[i].ulStart_time_ms < pxSchedule[j].ulEnd_time_ms) &&
-                        (pxSchedule[j].ulStart_time_ms < pxSchedule[i].ulEnd_time_ms))
-                    {
-                        return ERR_OVERLAP;
-                    }
-                }
-            }
-        }
-    }
-
-    return SCHED_VALID;
 }

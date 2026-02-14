@@ -22,10 +22,65 @@ static TimelineTaskConfig_t *pxCurrentSchedule = NULL;
 static uint32_t ulScheduleSize = 0;
 static uint32_t ulSubFrameSize = 0;
 
-// Handel for the first SRT task of the chain
+// Handle for the first SRT task of the chain
 static TaskHandle_t xFirstSRTHandle = NULL;
 
+/*
+ * INTERNAL VALIDATION FUNCTION
+ * This function is static (private) to hide validation logic from the user (Encapsulation).
+ * It checks for:
+ * 1. Invalid Subframe IDs
+ * 2. Invalid Timings (Start >= End)
+ * 3. Boundary Violations (Task exceeds subframe duration)
+ * 4. Task Overlaps (Only for Hard Real-Time tasks)
+ */
+static SchedError_t xValidateSchedule(const TimelineTaskConfig_t *pxSchedule,
+					uint32_t uxTaskCount,
+					uint32_t ulSubFrameDuration,
+					uint32_t ulTotalSubFrames)
+{
+	for (uint32_t i = 0; i < uxTaskCount; i++)
+    	{
+		if (pxSchedule[i].ulSubframe_id >= ulTotalSubFrames)
+        	{
+            		return ERR_INVALID_SF;
+        	}
 
+        	if (pxSchedule[i].type == SOFT_RT)
+        	{
+            		continue; // Skip to next task, SRTs don't need time checks
+        	}
+
+        	if (pxSchedule[i].ulEnd_time_ms <= pxSchedule[i].ulStart_time_ms)
+        	{
+            		return ERR_INVALID_TIME;
+        	}
+
+        	if (pxSchedule[i].ulEnd_time_ms > ulSubFrameDuration ||
+            		pxSchedule[i].ulStart_time_ms > ulSubFrameDuration)
+        	{
+            		return ERR_OUT_OF_BOUNDS;
+        	}
+
+        	if (pxSchedule[i].type == HARD_RT)
+        	{
+            		for (uint32_t j = i + 1; j < uxTaskCount; j++)
+            		{
+                		if (pxSchedule[j].type == HARD_RT &&
+                    			pxSchedule[i].ulSubframe_id == pxSchedule[j].ulSubframe_id)
+                		{
+                    			if ((pxSchedule[i].ulStart_time_ms < pxSchedule[j].ulEnd_time_ms) &&
+                        			(pxSchedule[j].ulStart_time_ms < pxSchedule[i].ulEnd_time_ms))
+                    			{
+                        			return ERR_OVERLAP;
+                    			}
+                		}
+            		}
+        	}
+    	}
+
+    return SCHED_VALID;
+}
 
 void vTaskWrapper(void *pvParameters)
 {
@@ -180,6 +235,27 @@ void vStartTimelineScheduler(TimelineTaskConfig_t *pxScheduleTable,
                              uint32_t ulSubFrameDurationMs,
                              uint32_t ulTotalSubFrames)
 {
+    /*
+     * PREPROCESS & VALIDATION (ENCAPSULATION)
+     * We perform validation INSIDE the scheduler so main.c doesn't need to worry about it.
+     * If an error occurs, we call a user-defined Hook Function (FreeRTOS style).
+     */
+    // Convert Absolute Times to Relative Times
+    if(xPreprocessSchedule(pxScheduleTable, ulTableSize, ulSubFrameDurationMs) != SCHED_VALID)
+    {
+        // if the condition occurs, there's an error and we call the hook function.
+	vApplicationScheduleErrorHook(ERR_PREPROCESS_FAIL);
+        configASSERT(0); // then lock the system if hook returns
+    }
+    // Validate Schedule Logic (Overlaps, Bounds, etc.)
+    SchedError_t xErr = xValidateSchedule(pxScheduleTable, ulTableSize, ulSubFrameDurationMs, ulTotalSubFrames);
+    if(xErr != SCHED_VALID)
+    {
+	// an error occurs and we call again the hook
+	vApplicationScheduleErrorHook(xErr);
+	configASSERT(0);
+    }
+
     // Step 1: Save the parameters (We will use later)
     pxCurrentSchedule = pxScheduleTable;
     ulScheduleSize = ulTableSize;

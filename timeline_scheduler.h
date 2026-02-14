@@ -25,7 +25,8 @@ typedef enum {
 	ERR_INVALID_TIME, // Start >= End
 	ERR_OUT_OF_BOUNDS, // End > Subframe Duration
 	ERR_OVERLAP, // 2 HRT tasks overlap
-	ERR_INVALID_SF // non-existing sub-frame id!
+	ERR_INVALID_SF, // non-existing sub-frame id!
+	ERR_PREPROCESS_FAIL // absolute to relative conversion failed
 } SchedError_t;
 
 /* Define the Configuration Structure 
@@ -64,6 +65,6 @@ SchedError_t xPreprocessSchedule(TimelineTaskConfig_t *pxSchedule,
 
 BaseType_t xUpdateTimelineScheduler(void);
 void vResetTimelineMajorFrame(void) ;
-                          
+void vApplicationScheduleErrorHook(SchedError_t xError);
 
 #endif /* TIMELINE_SCHEDULER_H */
