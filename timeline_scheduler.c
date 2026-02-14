@@ -522,7 +522,6 @@ BaseType_t xUpdateTimelineScheduler(void)
 
 void vResetTimelineMajorFrame(void)
 {
-
     for (uint32_t i = 0; i < ulScheduleSize; i++)
     {
 
@@ -532,6 +531,7 @@ void vResetTimelineMajorFrame(void)
 
     // We have to give notify to the first SRT task in the new major frame
     if(xFirstSRTHandle != NULL){
-        xTaskNotifyGive(xFirstSRTHandle);
+	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+        vTaskNotifyGiveFromISR(xFirstSRTHandle, &xHigherPriorityTaskWoken);
     }
 }

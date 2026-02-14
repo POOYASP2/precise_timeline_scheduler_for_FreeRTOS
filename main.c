@@ -3,29 +3,40 @@
 #include "uart.h"
 #include "trace.h"
 #include "timeline_scheduler.h"
+#define WORK_LOAD_1MS 50000
+
+
 
 // HRT tasks
+// short and simple task
 void vTask1(void *pvParams)
 {
     (void)pvParams;
     UART_printf("HRT 1\n");
-    for (volatile uint32_t i = 0; i < 50000; i++)
+    for (volatile uint32_t i = 0; i < (WORK_LOAD_1MS)*2; i++)
     {
         __asm volatile("nop");
     }
 }
 
+// intermediate level heavy task
 void vTask3(void *pvParams)
 {
     (void)pvParams;
     UART_printf("HRT 3\n");
-}
 
+    for (volatile uint32_t i = 0; i < (WORK_LOAD_1MS)*5; i++)
+    {
+        __asm volatile("nop");
+    }
+
+}
+// heavy task
 void vTask2(void *pvParams)
 {
     (void)pvParams;
     UART_printf("HRT 2\n");
-    for (volatile uint32_t i = 0; i < 400; i++)
+    for (volatile uint32_t i = 0; i < (WORK_LOAD_1MS)*10; i++)
     {
         __asm volatile("nop");
     }
@@ -35,12 +46,16 @@ void vTask2(void *pvParams)
 // SRT tasks
 void vTaskSRT_A(void *pvParams) {
     (void)pvParams;
-    UART_printf("SRT A\r\n"); 
+    UART_printf("SRT A\r\n");
+
+    for (volatile uint32_t i = 0; i < (WORK_LOAD_1MS / 2); i++);
 }
 
 void vTaskSRT_B(void *pvParams) {
     (void)pvParams;
     UART_printf("SRT B\r\n");
+
+    for (volatile uint32_t i = 0; i < (WORK_LOAD_1MS / 2); i++);
 }
 
 /*
@@ -84,12 +99,16 @@ void vApplicationScheduleErrorHook(SchedError_t xError)
 
 /* Schedule table */
 static TimelineTaskConfig_t my_schedule[] = {
-    {"TASK 1", vTask1, HARD_RT, 10,   11,  0, 256, 0, NULL, TASK_NOT_STARTED, NULL},
-    {"TASK 2", vTask2, HARD_RT, 200, 500, 0, 256, 1, NULL, TASK_NOT_STARTED, NULL},
-    {"TASK 3", vTask2, HARD_RT, 550, 600, 0, 256, 2, NULL, TASK_NOT_STARTED, NULL},
+    // HRT1: runs in the beginning between 2ms and 8ms; subframe 0
+    {"HRT_Start", vTask1, HARD_RT, 2, 8, 0, 256, 0, NULL, TASK_NOT_STARTED, NULL},
+    // HRT2: runs in the middle between 45ms and 48ms; subframe 4
+    {"HRT_Mid",   vTask1, HARD_RT, 45, 48, 4, 256, 1, NULL, TASK_NOT_STARTED, NULL},
+    // HRT3: runs in the end between 90ms and 95ms; subframe 9
+    {"HRT_End",   vTask3, HARD_RT, 90, 95, 9, 256, 2, NULL, TASK_NOT_STARTED, NULL},
 
-    {"SRT A", vTaskSRT_A, SOFT_RT, 0, 0, 0, 256, 2, NULL, TASK_NOT_STARTED, NULL},
-    {"SRT B", vTaskSRT_B, SOFT_RT, 0, 0, 0, 256, 3, NULL, TASK_NOT_STARTED, NULL},
+    // SRT Tasks, fills the gaps
+    {"SRT_A",     vTaskSRT_A, SOFT_RT, 0, 0, 0, 256, 3, NULL, TASK_NOT_STARTED, NULL},
+    {"SRT_B",     vTaskSRT_B, SOFT_RT, 0, 0, 0, 256, 4, NULL, TASK_NOT_STARTED, NULL},
 };
 
 int main(void)
