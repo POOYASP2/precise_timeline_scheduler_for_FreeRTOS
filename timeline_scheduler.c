@@ -495,7 +495,7 @@ BaseType_t xUpdateTimelineScheduler(void)
         }
 
         // Check for deadline
-        if (pxTask->ulEnd_time_ms == ulTimeInSubFrame)
+        if (pxTask->ulEnd_time_ms == ulTimeInSubFrame && pxTask->type == HARD_RT)
         {
             if (pxTask->state == TASK_RUNNING)
             {

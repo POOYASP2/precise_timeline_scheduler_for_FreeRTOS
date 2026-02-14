@@ -6,6 +6,8 @@
 #define WORK_LOAD_1MS 50000
 
 
+volatile int sharedSensorData = 0;
+
 
 // HRT tasks
 // short and simple task
@@ -14,6 +16,17 @@ void vTask1(void *pvParams)
     (void)pvParams;
     UART_printf("HRT 1\n");
     for (volatile uint32_t i = 0; i < (WORK_LOAD_1MS)*2; i++)
+    {
+        __asm volatile("nop");
+    }
+}
+
+// heavy task
+void vTask2(void *pvParams)
+{
+    (void)pvParams;
+    UART_printf("HRT 2\n");
+    for (volatile uint32_t i = 0; i < (WORK_LOAD_1MS)*10; i++)
     {
         __asm volatile("nop");
     }
@@ -31,16 +44,6 @@ void vTask3(void *pvParams)
     }
 
 }
-// heavy task
-void vTask2(void *pvParams)
-{
-    (void)pvParams;
-    UART_printf("HRT 2\n");
-    for (volatile uint32_t i = 0; i < (WORK_LOAD_1MS)*10; i++)
-    {
-        __asm volatile("nop");
-    }
-}
 
 
 // SRT tasks
@@ -57,6 +60,25 @@ void vTaskSRT_B(void *pvParams) {
 
     for (volatile uint32_t i = 0; i < (WORK_LOAD_1MS / 2); i++);
 }
+
+void vTaskProducer(void *pvParams) {
+    (void)pvParams;
+    // increment the value
+    sharedSensorData++;
+    UART_printf("Producer wrote the data!\n");
+
+    for (volatile uint32_t i = 0; i < (WORK_LOAD_1MS * 2); i++);
+}
+
+void vTaskConsumer(void *pvParams) {
+    (void)pvParams;
+    // Reading the data (Polling)
+    int read_data = sharedSensorData;
+
+    UART_printf("Consumer read the data!\n");
+    for (volatile uint32_t i = 0; i < (WORK_LOAD_1MS * 2); i++);
+}
+
 
 /*
  * ERROR HOOK
@@ -99,16 +121,11 @@ void vApplicationScheduleErrorHook(SchedError_t xError)
 
 /* Schedule table */
 static TimelineTaskConfig_t my_schedule[] = {
-    // HRT1: runs in the beginning between 2ms and 8ms; subframe 0
-    {"HRT_Start", vTask1, HARD_RT, 2, 8, 0, 256, 0, NULL, TASK_NOT_STARTED, NULL},
-    // HRT2: runs in the middle between 45ms and 48ms; subframe 4
-    {"HRT_Mid",   vTask1, HARD_RT, 45, 48, 4, 256, 1, NULL, TASK_NOT_STARTED, NULL},
-    // HRT3: runs in the end between 90ms and 95ms; subframe 9
-    {"HRT_End",   vTask3, HARD_RT, 90, 95, 9, 256, 2, NULL, TASK_NOT_STARTED, NULL},
-
-    // SRT Tasks, fills the gaps
-    {"SRT_A",     vTaskSRT_A, SOFT_RT, 0, 0, 0, 256, 3, NULL, TASK_NOT_STARTED, NULL},
-    {"SRT_B",     vTaskSRT_B, SOFT_RT, 0, 0, 0, 256, 4, NULL, TASK_NOT_STARTED, NULL},
+    {"Producer", vTaskProducer, HARD_RT, 2, 5, 0, 256, 0, NULL, TASK_NOT_STARTED, NULL},
+    {"Consumer", vTaskConsumer, HARD_RT, 6, 9, 0, 256, 1, NULL, TASK_NOT_STARTED, NULL},
+    {"SRT_A", vTaskSRT_A, SOFT_RT, 11, 19, 1, 256, 2, NULL, TASK_NOT_STARTED, NULL},
+    {"HRT_Mid", vTask1, HARD_RT, 42, 48, 4, 256, 3, NULL, TASK_NOT_STARTED, NULL},
+    {"HRT_End", vTask3, HARD_RT, 92, 98, 9, 256, 4, NULL, TASK_NOT_STARTED, NULL},
 };
 
 int main(void)
