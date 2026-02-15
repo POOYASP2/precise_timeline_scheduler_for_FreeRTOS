@@ -98,7 +98,7 @@ void TracePushTimeline(uint8_t taskId,
                        uint16_t info16)
 {
     if (xTraceQueue == NULL) return;
-
+    
     TraceLog_t log;
     log.tick     = xTaskGetTickCount();
     log.frame_ms = frame_ms;

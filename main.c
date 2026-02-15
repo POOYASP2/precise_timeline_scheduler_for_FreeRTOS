@@ -65,7 +65,7 @@ void vTaskProducer(void *pvParams) {
     (void)pvParams;
     // increment the value
     sharedSensorData++;
-    UART_printf("Producer wrote the data!\n");
+    UART_printf(" Producer wrote the data!\n");
 
     for (volatile uint32_t i = 0; i < (WORK_LOAD_1MS * 2); i++);
 }
@@ -75,7 +75,7 @@ void vTaskConsumer(void *pvParams) {
     // Reading the data (Polling)
     int read_data = sharedSensorData;
 
-    UART_printf("Consumer read the data!\n");
+    UART_printf(" Consumer read the data!\n");
     for (volatile uint32_t i = 0; i < (WORK_LOAD_1MS * 2); i++);
 }
 
@@ -121,11 +121,16 @@ void vApplicationScheduleErrorHook(SchedError_t xError)
 
 /* Schedule table */
 static TimelineTaskConfig_t my_schedule[] = {
+    // Subframe 0: Data Exchange 
     {"Producer", vTaskProducer, HARD_RT, 2, 5, 0, 256, 0, NULL, TASK_NOT_STARTED, NULL},
     {"Consumer", vTaskConsumer, HARD_RT, 6, 9, 0, 256, 1, NULL, TASK_NOT_STARTED, NULL},
-    {"SRT_A", vTaskSRT_A, SOFT_RT, 11, 19, 1, 256, 2, NULL, TASK_NOT_STARTED, NULL},
-    {"HRT_Mid", vTask1, HARD_RT, 42, 48, 4, 256, 3, NULL, TASK_NOT_STARTED, NULL},
-    {"HRT_End", vTask3, HARD_RT, 92, 98, 9, 256, 4, NULL, TASK_NOT_STARTED, NULL},
+
+    // Subframe 2: A normal task to show life
+    {"HRT_Mid", vTask1, HARD_RT, 22, 25, 0, 256, 2, NULL, TASK_NOT_STARTED, NULL},
+
+    // SRT Tasks (Set times to 0 to be clean)
+    {"SRT_A", vTaskSRT_A, SOFT_RT, 0, 0, 0, 256, 3, NULL, TASK_NOT_STARTED, NULL},
+    {"SRT_B", vTaskSRT_B, SOFT_RT, 0, 0, 0, 256, 4, NULL, TASK_NOT_STARTED, NULL},
 };
 
 int main(void)

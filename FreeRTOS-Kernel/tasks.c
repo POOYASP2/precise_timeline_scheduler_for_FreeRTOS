@@ -4708,7 +4708,6 @@ BaseType_t xTaskIncrementTick( void )
         if (ulSubFrameDuration > 0) 
         {
             ulGlobalTimeInFrame++;   // Same as xTickCount in FreeRTOS
-
             /* Check for Sub-Frame Rollover */
             if ((ulGlobalTimeInFrame % ulSubFrameDuration) == 0) 
             {
@@ -4716,13 +4715,14 @@ BaseType_t xTaskIncrementTick( void )
             }
 
             /* Check for Major Frame Rollover */
-            if (ulCurrentSubFrameIndex >= ulTotalSubFrames) 
+            if (ulGlobalTimeInFrame >= (ulTotalSubFrames * ulSubFrameDuration)) 
             {
                 ulGlobalTimeInFrame = 0;
                 ulCurrentSubFrameIndex = 0;
                 extern void vResetTimelineMajorFrame(void);
                 vResetTimelineMajorFrame();
             }
+
         }
         
     #endif
