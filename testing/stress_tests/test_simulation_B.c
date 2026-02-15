@@ -5,7 +5,7 @@
 #define SF_MS      1000u
 #define TOTAL_SF   (MAJOR_MS / SF_MS)
 
-//DEPENDS ON PREEMPTION DONT RUN YET
+//MIGHT LOOP IF PREEMPTION NOT IMPLEMENTED
 
 static void vBlockLong(void *pv)
 {
@@ -60,8 +60,6 @@ static void vOrchestrator(void *pv)
 
 test_result_t run_test(void)
 {
-    //move after starttime when preemption works
-    return TEST_FAIL;
     vTestPlatformBringUp(true);
 
     my_schedule[0].function = vOrchestrator;
@@ -76,4 +74,6 @@ test_result_t run_test(void)
 
     vStartTimelineScheduler(my_schedule, numTasks, SF_MS, TOTAL_SF);
     
+    //never reached
+    return TEST_FAIL;
 }

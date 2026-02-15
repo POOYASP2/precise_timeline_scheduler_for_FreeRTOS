@@ -5,7 +5,7 @@
 #define SF_MS      1000u
 #define TOTAL_SF   (MAJOR_MS / SF_MS)
 
-//DEPENDS ON PREEMPTION DONT RUN YET
+//MIGHT LOOP IF PREEMPTION NOT IMPLEMENTED
 
 static volatile uint32_t g_started = 0;
 
@@ -60,8 +60,6 @@ static TimelineTaskConfig_t my_schedule[] = {
 
 test_result_t run_test(void)
 {
-    //move after startime when preemption works
-    return TEST_FAIL;
     vTestPlatformBringUp(true);
 
     const uint32_t numTasks = (uint32_t)(sizeof(my_schedule) / sizeof(my_schedule[0]));
@@ -73,4 +71,7 @@ test_result_t run_test(void)
     ASSERT(xValidateSchedule(my_schedule, numTasks, SF_MS, TOTAL_SF) == SCHED_VALID);
 
     vStartTimelineScheduler(my_schedule, numTasks, SF_MS, TOTAL_SF);
+
+    //never reached
+    return TEST_FAIL;
 }
