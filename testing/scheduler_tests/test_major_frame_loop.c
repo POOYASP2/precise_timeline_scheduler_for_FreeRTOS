@@ -19,6 +19,7 @@ static void vOrchestrator(void *pv)
 
     vResetTimelineMajorFrame();
 
+    ASSERT_RTOS(g_sched[0].state == TASK_NOT_STARTED);
     ASSERT_RTOS(g_sched[1].state == TASK_NOT_STARTED);
     ASSERT_RTOS(g_sched[2].state == TASK_NOT_STARTED);
 

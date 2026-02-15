@@ -6,16 +6,16 @@
 static TimelineTaskConfig_t g_sched[3];
 
 //to force a deadline miss
-static void vLongBlockingTask1()
+static void vLongBlockingTask()
 {
     ASSERT_RTOS(g_sched[1].state == TASK_RUNNING);
     vTaskDelay(pdMS_TO_TICKS(50));
+    ASSERT_RTOS(eTaskGetState(g_sched[2].xHandle) == eReady);
 }
 
-static void vLongBlockingTask2()
+static void vWorkingTask()
 {
     ASSERT_RTOS(g_sched[2].state == TASK_RUNNING);
-    vTaskDelay(pdMS_TO_TICKS(50));
 }
 
 static void vOrchestrator(void *pv)
@@ -24,7 +24,9 @@ static void vOrchestrator(void *pv)
 
     ASSERT_RTOS(g_sched[0].state == TASK_RUNNING);
     ASSERT_RTOS(g_sched[1].state == TASK_DEADLINE_MISSED);
+    ASSERT_RTOS(g_sched[2].state == TASK_DONE);
     ASSERT_RTOS(eTaskGetState(g_sched[1].xHandle) == eSuspended);
+    ASSERT_RTOS(eTaskGetState(g_sched[2].xHandle) == eSuspended);
 
     qemu_exit(TEST_PASS);
     for (;;) {}
@@ -39,13 +41,13 @@ test_result_t run_test(void)
     };
 
     g_sched[1] = (TimelineTaskConfig_t){
-        .task_name="MISS", .function=vLongBlockingTask1, .type=HARD_RT,
+        .task_name="MISS", .function=vLongBlockingTask, .type=HARD_RT,
         .ulStart_time_ms=1, .ulEnd_time_ms=3, .usStackSize=configMINIMAL_STACK_SIZE+128,
         .taskId=2, .state=TASK_NOT_STARTED
     };
 
     g_sched[2] = (TimelineTaskConfig_t){
-        .task_name="D", .function=vLongBlockingTask2, .type=SOFT_RT,
+        .task_name="DONE", .function=vWorkingTask, .type=SOFT_RT,
         .ulStart_time_ms=5, .ulEnd_time_ms=20, .usStackSize=configMINIMAL_STACK_SIZE+128,
         .taskId=3, .state=TASK_NOT_STARTED
     };

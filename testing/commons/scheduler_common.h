@@ -8,7 +8,6 @@
 #include "testing/commons/test_common.h"
 #include "timeline_scheduler.h"
 
-// These are provided by FreeRTOS-Kernel/tasks.c
 extern volatile uint32_t ulCurrentSubFrameIndex;
 extern volatile uint32_t ulGlobalTimeInFrame;
 extern volatile uint32_t ulSubFrameDuration;

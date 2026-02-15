@@ -2,9 +2,9 @@
 Defines some common utilities for all tests.
 TEST_PASS = 0 and TEST_FAIL = 1 are the values used for indicating the status of a test, inside the variable test_result_t.
 
-Every test should define a 'run_test' function where they use TEST_ASSERT to verify conditions, if any condition is false then the test ends with a TEST_FAIL status. At the end of every test 'run_test' should return TEST_PASS, which will only be executed if none of the assertions failed.
+Every test should define a 'run_test' function where they use ASSERT to verify conditions, if any condition is false then the test ends with a TEST_FAIL status. At the end of every test 'run_test' should return TEST_PASS, which will only be executed if none of the assertions failed.
 
-Once the test is over, a special function is called automatically to exit qemu.
+Once the test is over, a special function is called automatically to exit qemu (in scheduler tests, this is handled differently).
 
 In the dummy_tests directory there are some very simple examples.
 
@@ -28,8 +28,23 @@ These tests check the correctness of the scheduler's behavior. Since these tests
 
 Scheduler tests use a special assert, ASSERT_RTOS, for assertions and have a function, vTestPlatformBringUp(bool startLogger), to use logging inside the test. The logging function has to be inserted into the run_test function in order to work.
 
-Since scheduler tests use qemu they need to exit. On the last task that should be run, use qemu_exit(TEST_PASS) to exit qemu and indicate a successful result (this is usually done in a vOrchestrator function).
-#### 
+Since scheduler tests use qemu they need to exit. On the last task that should be run, use qemu_exit(TEST_PASS) to exit qemu and indicate a successful result.
+
+#### Major Frame Loop
+Checks that the reset function correctly resets tasks for the looping behavior of the major frame.
+
+#### Polling
+Currently placeholder.
+
+#### Preemption
+Checks for the mechanisms of preemption for simple
+
+#### Task Updating
+Checks that the updating function (assumed to run every tick) udpates tasks correctly according to if they met their deadlines.
+
+### Stress Test
+These tests are just simulations for extreme use cases.
+Simulation C is not a stress test but is made to be easily editable for manual testing of the scheduler.
 
 ## How to run
 Inside the testing directory there is another Makefile that runs the root Makefile to start qemu and then can run each test separately using the main() function defined in 'test_common.c'.
@@ -37,4 +52,4 @@ Inside the testing directory there is another Makefile that runs the root Makefi
 Use 'make clean' to clean any compiled objects. \
 Use 'make list' to see the list of all tests. \
 Use 'make all' to run all tests. \
-Use 'make test TEST=/example/test_example.c to run a single test.
+Use 'make test TEST=/example/test_example.c' to run a single test.
