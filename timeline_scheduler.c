@@ -34,7 +34,7 @@ static TaskHandle_t xFirstSRTHandle = NULL;
  * 3. Boundary Violations (Task exceeds subframe duration)
  * 4. Task Overlaps (Only for Hard Real-Time tasks)
  */
-static SchedError_t xValidateSchedule(const TimelineTaskConfig_t *pxSchedule,
+SchedError_t xValidateSchedule(const TimelineTaskConfig_t *pxSchedule,
 					uint32_t uxTaskCount,
 					uint32_t ulSubFrameDuration,
 					uint32_t ulTotalSubFrames)

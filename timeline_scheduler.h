@@ -67,4 +67,9 @@ BaseType_t xUpdateTimelineScheduler(void);
 void vResetTimelineMajorFrame(void) ;
 void vApplicationScheduleErrorHook(SchedError_t xError);
 
+SchedError_t xValidateSchedule(const TimelineTaskConfig_t *pxSchedule,
+                              uint32_t uxTaskCount,
+                              uint32_t ulSubFrameDuration,
+                              uint32_t ulTotalSubFrames);
+
 #endif /* TIMELINE_SCHEDULER_H */
