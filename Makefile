@@ -89,7 +89,8 @@ SOURCES += \
     $(KERNEL_DIR)/portable/MemMang/heap_4.c
 
 # 3. The Application
-SOURCES += timeline_scheduler.c
+SOURCES += timeline_scheduler.c \
+	   application_hooks.c
 
 USE_APP_MAIN ?= 1
 ifeq ($(USE_APP_MAIN),1)
