@@ -133,6 +133,17 @@ static TimelineTaskConfig_t my_schedule[] = {
     {"SRT_B", vTaskSRT_B, SOFT_RT, 0, 0, 0, 256, 4, NULL, TASK_NOT_STARTED, NULL},
 };
 
+static void vTraceRegisterNamesFromSchedule(void)
+{
+    uint32_t numTasks = (uint32_t)(sizeof(my_schedule) / sizeof(my_schedule[0]));
+
+    for (uint32_t i = 0; i < numTasks; i++)
+    {
+        /* These field names match your timeline_scheduler.c usage: pxScheduleTable[i].task_name and .taskId */
+        TraceRegisterTaskName((uint8_t)my_schedule[i].taskId, my_schedule[i].task_name);
+    }
+}
+
 int main(void)
 {
     UART_init();
@@ -140,6 +151,9 @@ int main(void)
 
     /* init trace + start logging task */
     vTraceInit();
+
+    vTraceRegisterNamesFromSchedule();
+
 
     xTaskCreate(vLoggingTask,
                 "logger",
