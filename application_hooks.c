@@ -2,7 +2,50 @@
 #include "task.h"
 #include "uart.h"
 #include "timeline_scheduler.h"
+#include "trace.h"   // <-- add this
 
+/* Log idle time as "ticks spent idle" per subframe. */
+void vApplicationIdleHook(void)
+{
+    static TickType_t xLastTick = 0;
+    static uint16_t   usIdleTicksThisSubframe = 0;
+    static uint32_t   ulLastSubframe = 0xFFFFFFFFu;
+
+    /* These are defined in FreeRTOS-Kernel/tasks.c */
+    extern volatile uint32_t ulCurrentSubFrameIndex;
+    extern volatile uint32_t ulGlobalTimeInFrame;
+
+    /* Count idle ticks (only when tick changes to avoid overcounting). */
+    TickType_t xNow = xTaskGetTickCount();
+    if (xLastTick == 0) {
+        xLastTick = xNow;
+    } else if (xNow != xLastTick) {
+        TickType_t xDiff = xNow - xLastTick; /* unsigned handles wrap */
+        if (xDiff > 0xFFFFu) xDiff = 0xFFFFu;
+        usIdleTicksThisSubframe = (uint16_t)(usIdleTicksThisSubframe + (uint16_t)xDiff);
+        xLastTick = xNow;
+    }
+
+    /* Log once when the subframe changes. */
+    uint32_t ulSf = ulCurrentSubFrameIndex;
+
+    if (ulLastSubframe == 0xFFFFFFFFu) {
+        ulLastSubframe = ulSf;
+    }
+
+    if (ulSf != ulLastSubframe) {
+        if (usIdleTicksThisSubframe != 0) {
+            /* frame_ms: current time in major frame (ms in your design),
+               subframe: the one we just finished */
+            TracePushIdle(usIdleTicksThisSubframe,
+                          (uint16_t)ulGlobalTimeInFrame,
+                          (uint8_t)ulLastSubframe);
+        }
+
+        usIdleTicksThisSubframe = 0;
+        ulLastSubframe = ulSf;
+    }
+}
 
 /*
  * ERROR HOOK
