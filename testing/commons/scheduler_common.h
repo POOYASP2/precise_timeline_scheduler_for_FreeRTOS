@@ -13,12 +13,14 @@ extern volatile uint32_t ulGlobalTimeInFrame;
 extern volatile uint32_t ulSubFrameDuration;
 
 // Bring up UART + trace + (optional) logging task
-static inline void vTestPlatformBringUp(bool startLogger)
+static inline void vTestPlatformBringUp(bool startLogger, const TimelineTaskConfig_t *schedule,
+                                     uint32_t numTasks)
 {
     UART_init();
     UART_printf("TEST BOOT\r\n");
 
     vTraceInit();
+    vTraceRegisterNamesFromSchedule(schedule, numTasks);
 
     if (startLogger)
     {
@@ -26,10 +28,11 @@ static inline void vTestPlatformBringUp(bool startLogger)
                           "logger",
                           configMINIMAL_STACK_SIZE + 256,
                           NULL,
-                          tskIDLE_PRIORITY + 3,
+                          LOGGER_PRIORITY,
                           NULL);
     }
 }
+
 
 #define STRINGIFY(x) #x
 #define TOSTRING(x) STRINGIFY(x)

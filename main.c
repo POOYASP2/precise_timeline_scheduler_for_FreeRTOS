@@ -79,46 +79,6 @@ void vTaskConsumer(void *pvParams) {
     for (volatile uint32_t i = 0; i < (WORK_LOAD_1MS * 2); i++);
 }
 
-
-/*
- * ERROR HOOK
- * Defined by the application to handle critical scheduler errors.
- * This function is called by 'vStartTimelineScheduler' if validation fails.
- *
-*/
-void vApplicationScheduleErrorHook(SchedError_t xError)
-{
-	UART_printf("\n!WARNING!\nScheduler Error detected!!\n");
-	//UART_printf("Error code: %d\n", xError);
-	UART_printf("\n-The system stopped-\n");
-
-	switch(xError)
-	{
-		case ERR_OVERLAP:
-            		UART_printf("Reason: HRT Task Overlap Detected!\r\n");
-            		break;
-            	case ERR_OUT_OF_BOUNDS:
-            		UART_printf("Reason: Task Duration Exceeds Subframe Limit!\r\n");
-            		break;
-        	case ERR_INVALID_SF:
-            		UART_printf("Reason: Invalid Subframe ID configured!\r\n");
-            		break;
-        	case ERR_INVALID_TIME:
-            		UART_printf("Reason: Task End-Time is before Start-Time!\r\n");
-            		break;
-        	case ERR_PREPROCESS_FAIL:
-            		UART_printf("Reason: Preprocessing Failed! (Check Task Boundaries or Frame logic)\r\n");
-            		break;
-		default:
-            		UART_printf("Reason: Unknown Error.\r\n");
-            		break;
-	}
-	// here lock the system with an infinite loop
-	taskDISABLE_INTERRUPTS();
-    	for(;;);
-}
-
-
 /* Schedule table */
 static TimelineTaskConfig_t my_schedule[] = {
     // Subframe 0: Data Exchange 
@@ -133,17 +93,6 @@ static TimelineTaskConfig_t my_schedule[] = {
     {"SRT_B", vTaskSRT_B, SOFT_RT, 0, 0, 0, 256, 4, NULL, TASK_NOT_STARTED, NULL},
 };
 
-static void vTraceRegisterNamesFromSchedule(void)
-{
-    uint32_t numTasks = (uint32_t)(sizeof(my_schedule) / sizeof(my_schedule[0]));
-
-    for (uint32_t i = 0; i < numTasks; i++)
-    {
-        /* These field names match your timeline_scheduler.c usage: pxScheduleTable[i].task_name and .taskId */
-        TraceRegisterTaskName((uint8_t)my_schedule[i].taskId, my_schedule[i].task_name);
-    }
-}
-
 int main(void)
 {
     UART_init();
@@ -151,8 +100,7 @@ int main(void)
 
     /* init trace + start logging task */
     vTraceInit();
-
-    vTraceRegisterNamesFromSchedule();
+    vTraceRegisterNamesFromSchedule(my_schedule, 5);
 
 
     xTaskCreate(vLoggingTask,

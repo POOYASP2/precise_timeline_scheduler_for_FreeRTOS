@@ -7,7 +7,7 @@ PARENT_TARGET := qemu
 TEST_SOURCES := $(shell find . -type f -name 'test_*.c' -not -path './commons/*' | sed 's|^\./||' | sort)
 
 
-.PHONY: all test list clean
+.PHONY: all test debug list clean
 
 all:
 	@set -e; \
@@ -35,7 +35,7 @@ all:
 	if [ $$fail -eq 0 ]; then \
 		echo "ALL TESTS PASSED"; \
 	else \
-		echo "$$fail TESTS FAILED"; \
+		echo "SOME TESTS FAILED"; \
 	fi; \
 	exit 0
 
@@ -49,6 +49,24 @@ test:
 	echo "Running $(TEST)"; \
 	$(MAKE) -s --no-print-directory -C $(ROOT_DIR) clean; \
 	if $(MAKE) -s --no-print-directory -C $(ROOT_DIR) qemu USE_APP_MAIN=0 \
+		EXTRA_SOURCES="testing/commons/test_common.c testing/$(TEST)"; then \
+		echo "PASS: $(TEST)"; \
+	else \
+		echo "FAIL: $(TEST)"; \
+	fi; \
+	echo "===================================="
+	exit 0
+
+debug:
+	@set -e; \
+	if [ -z "$(TEST)" ]; then \
+		echo "ERROR: Please specify a test with TEST=<test_file>"; \
+		exit 1; \
+	fi; \
+	echo "===================================="; \
+	echo "Running $(TEST)"; \
+	$(MAKE) -s --no-print-directory -C $(ROOT_DIR) clean; \
+	if $(MAKE) -s --no-print-directory -C $(ROOT_DIR) qemu_debug USE_APP_MAIN=0 \
 		EXTRA_SOURCES="testing/commons/test_common.c testing/$(TEST)"; then \
 		echo "PASS: $(TEST)"; \
 	else \

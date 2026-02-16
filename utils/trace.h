@@ -3,6 +3,7 @@
 
 #include "FreeRTOS.h"
 #include "task.h"
+#include "timeline_scheduler.h"
 #include <stdint.h>
 
 typedef enum
@@ -64,5 +65,8 @@ void TracePushIdle(uint16_t idle_ticks,
 void vLoggingTask(void *pvParameters);
 
 void TraceRegisterTaskName(uint8_t taskId, const char *name);
+
+void vTraceRegisterNamesFromSchedule(const TimelineTaskConfig_t *schedule,
+                                            uint32_t numTasks);
 
 #endif /* TRACE_H */

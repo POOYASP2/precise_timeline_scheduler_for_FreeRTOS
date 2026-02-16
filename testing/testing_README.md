@@ -26,15 +26,17 @@ The validate test checks: \
 ### Scheduler
 These tests check the correctness of the scheduler's behavior. Since these tests are more complex and difficult to debug, they should be all be defined in a separate file.
 
-Scheduler tests use a special assert, ASSERT_RTOS, for assertions and have a function, vTestPlatformBringUp(bool startLogger), to use logging inside the test. The logging function has to be inserted into the run_test function in order to work.
+Scheduler tests use a special assert, ASSERT_RTOS, for assertions and have a function, vTestPlatformBringUp(bool startLogger, timeline_schedule, numTasks), to use logging inside the test. The logging function has to be inserted into the run_test function in order to work.
 
 Since scheduler tests use qemu they need to exit. On the last task that should be run, use qemu_exit(TEST_PASS) to exit qemu and indicate a successful result.
+
+NOTE: the function that starts the scheduler performs validation and preprocessing automatically. Doing preprocessing twice leads to errors, so if you need to do check the result of preprocessing do it on a copy of the timeline schedule.
 
 #### Major Frame Loop
 Checks that the reset function correctly resets tasks for the looping behavior of the major frame.
 
 #### Polling
-Currently placeholder.
+Tests that mechanisms for Producer_Consumer work correctly.
 
 #### Preemption
 Checks for the mechanisms of preemption for simple
@@ -43,8 +45,8 @@ Checks for the mechanisms of preemption for simple
 Checks that the updating function (assumed to run every tick) udpates tasks correctly according to if they met their deadlines.
 
 ### Stress Test
-These tests are just simulations for extreme use cases.
-Simulation C is not a stress test but is made to be easily editable for manual testing of the scheduler.
+These tests are just simulations for extreme use cases, such as strict hrt deadlines with preemption (simulation A) or forced deadlines misses (simulation B).
+Simulation C is not a stress test but is made to be easily editable for manual testing of the scheduler and as a baseline for other simulations.
 
 ## How to run
 Inside the testing directory there is another Makefile that runs the root Makefile to start qemu and then can run each test separately using the main() function defined in 'test_common.c'.
@@ -53,3 +55,4 @@ Use 'make clean' to clean any compiled objects. \
 Use 'make list' to see the list of all tests. \
 Use 'make all' to run all tests. \
 Use 'make test TEST=/example/test_example.c' to run a single test.
+Use 'make debug TEST=/example/test_example.c' to run a single test in qemu-debug mode (gdb must be opened and connected on another terminal).

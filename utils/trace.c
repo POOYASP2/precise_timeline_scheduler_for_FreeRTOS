@@ -3,6 +3,7 @@
 #include "queue.h"
 #include "trace.h"
 #include "uart.h"
+#include "timeline_scheduler.h"
 #include <stdint.h>
 
 #ifndef TRACE_QUEUE_LEN
@@ -20,6 +21,17 @@ void TraceRegisterTaskName(uint8_t taskId, const char *name)
 {
     if (taskId < TRACE_MAX_TASKS) {
         gTraceTaskNames[taskId] = name;
+    }
+}
+
+void vTraceRegisterNamesFromSchedule(const TimelineTaskConfig_t *schedule,
+                                     uint32_t numTasks)
+{
+    for (uint32_t i = 0; i < numTasks; i++)
+    {
+        TraceRegisterTaskName(
+            (uint8_t)schedule[i].taskId,
+            schedule[i].task_name);
     }
 }
 

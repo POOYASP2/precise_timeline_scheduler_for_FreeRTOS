@@ -1,4 +1,5 @@
 #include "testing/commons/scheduler_common.h"
+#include <string.h>
 
 #define SF_MS    20u
 #define TOTAL_SF 3u
@@ -18,7 +19,7 @@ static void vWorkingTask()
     ASSERT_RTOS(g_sched[2].state == TASK_RUNNING);
 }
 
-static void vOrchestrator(void *pv)
+static void vChecker(void *pv)
 {
     (void)pv;
 
@@ -35,8 +36,8 @@ static void vOrchestrator(void *pv)
 test_result_t run_test(void)
 {
     g_sched[0] = (TimelineTaskConfig_t){
-        .task_name="ORCH", .function=vOrchestrator, .type=HARD_RT,
-        .ulStart_time_ms=20, .ulEnd_time_ms=40, .usStackSize=configMINIMAL_STACK_SIZE+256,
+        .task_name="CHECK", .function=vChecker, .type=HARD_RT,
+        .ulStart_time_ms=21, .ulEnd_time_ms=40, .usStackSize=configMINIMAL_STACK_SIZE+256,
         .taskId=1, .state=TASK_NOT_STARTED
     };
 
@@ -47,20 +48,21 @@ test_result_t run_test(void)
     };
 
     g_sched[2] = (TimelineTaskConfig_t){
-        .task_name="DONE", .function=vWorkingTask, .type=SOFT_RT,
+        .task_name="DONE", .function=vWorkingTask, .type=HARD_RT,
         .ulStart_time_ms=5, .ulEnd_time_ms=20, .usStackSize=configMINIMAL_STACK_SIZE+128,
         .taskId=3, .state=TASK_NOT_STARTED
     };
 
-    vTestPlatformBringUp(true);
+    TimelineTaskConfig_t sched_copy[3];
+    memcpy(sched_copy, g_sched, sizeof(g_sched));
 
-    ASSERT(xPreprocessSchedule(g_sched, 3, SF_MS) == SCHED_VALID);
-    ulSubFrameDuration = SF_MS;
+    ASSERT(xPreprocessSchedule(sched_copy, 3, SF_MS) == SCHED_VALID);
+    ASSERT(xValidateSchedule(sched_copy, 3, SF_MS, TOTAL_SF) == SCHED_VALID);
 
-    extern SchedError_t xValidateSchedule(const TimelineTaskConfig_t*, uint32_t, uint32_t, uint32_t);
-    ASSERT(xValidateSchedule(g_sched, 3, SF_MS, TOTAL_SF) == SCHED_VALID);
+    vTestPlatformBringUp(true, g_sched, 3);
 
     vStartTimelineScheduler(g_sched, 3, SF_MS, TOTAL_SF);
+
 
     //never reached
     return TEST_FAIL;

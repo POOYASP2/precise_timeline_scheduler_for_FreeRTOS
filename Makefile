@@ -97,6 +97,10 @@ SOURCES += main.c \
            $(EXTRA_SOURCES)
 endif
 
+ifeq ($(USE_APP_MAIN),0)
+USER_DEFINES += -DTESTING=1
+endif
+
 #this is for mainly testing
 EXTRA_SOURCES ?=
 SOURCES += $(EXTRA_SOURCES)

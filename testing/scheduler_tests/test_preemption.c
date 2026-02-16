@@ -1,54 +1,57 @@
 #include "testing/commons/scheduler_common.h"
 #include "timeline_scheduler.h"
+#include <string.h>
 
 #define MAJOR_MS   5000u
 #define SF_MS      1000u
 #define TOTAL_SF   (MAJOR_MS / SF_MS)
 
-//DEPENDS ON PREEMPTION DONT RUN YET
+int hrt_executed = 0;
 
 static void vLongSRT(void *pv)
 {
     (void)pv;
 
-    for (volatile uint32_t i = 0; i < 2000000u; i++)
+    for (volatile uint32_t i = 0; i < (500000000); i++)
     {
-        if ((i % 20000u) == 0u)
-        {
-            taskYIELD();
-        }
+        __asm volatile("nop");
     }
 
-    //if hrt is never executed, preemption failed
-    qemu_exit(TEST_FAIL);
-    for (;;) {}
+    if (hrt_executed == 0) {
+        qemu_exit(TEST_FAIL);
+        for (;;) {}
+    } else {
+        qemu_exit(TEST_PASS);
+        for (;;) {}
+    }
 }
 
 static void vHRT(void *pv)
 {
     (void)pv;
 
-    //if hrt runs, preemption was successful
-    qemu_exit(TEST_PASS);
-    for (;;) {}
+    hrt_executed++;
 }
 
-
+//hard rt starts and ends within soft rt timeline.
 static TimelineTaskConfig_t my_schedule[] = {
     {"SRT_LONG",    vLongSRT, SOFT_RT, 10,  900, 0, 256, 0, NULL, TASK_NOT_STARTED},
-    {"HRT_PREEMPT", vHRT,     HARD_RT, 200, 300, 0, 256, 1, NULL, TASK_NOT_STARTED},
+    {"HRT_PREEMPT", vHRT,     HARD_RT, 20, 300, 0, 256, 1, NULL, TASK_NOT_STARTED},
 };
 
 test_result_t run_test(void)
 {
-    vTestPlatformBringUp(true);
 
-    ASSERT(xPreprocessSchedule(my_schedule, 2, SF_MS) == SCHED_VALID);
+    TimelineTaskConfig_t sched_copy[2];
+    memcpy(sched_copy, my_schedule, sizeof(my_schedule));
 
-    extern SchedError_t xValidateSchedule(const TimelineTaskConfig_t*, uint32_t, uint32_t, uint32_t);
-    ASSERT(xValidateSchedule(my_schedule, 2, SF_MS, TOTAL_SF) == SCHED_VALID);
+    ASSERT(xPreprocessSchedule(sched_copy, 2, SF_MS) == SCHED_VALID);
+    ASSERT(xValidateSchedule(sched_copy, 2, SF_MS, TOTAL_SF) == SCHED_VALID);
+
+    vTestPlatformBringUp(true, my_schedule, 3);
 
     vStartTimelineScheduler(my_schedule, 2, SF_MS, TOTAL_SF);
+
 
     //never reached
     return TEST_FAIL;

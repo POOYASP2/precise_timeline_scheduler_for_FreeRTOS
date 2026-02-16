@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "trace.h"
+#include "uart.h"
 
 // A structure for single subframe to store the tasks
 typedef struct
@@ -267,16 +268,25 @@ void vStartTimelineScheduler(TimelineTaskConfig_t *pxScheduleTable,
     if(xPreprocessSchedule(pxScheduleTable, ulTableSize, ulSubFrameDurationMs) != SCHED_VALID)
     {
         // if the condition occurs, there's an error and we call the hook function.
-	vApplicationScheduleErrorHook(ERR_PREPROCESS_FAIL);
-        configASSERT(0); // then lock the system if hook returns
+	    #if TESTING
+            //To avoid locking in testing!
+        #else
+            vApplicationScheduleErrorHook(ERR_PREPROCESS_FAIL);
+            configASSERT(0);
+        #endif
+
     }
     // Validate Schedule Logic (Overlaps, Bounds, etc.)
     SchedError_t xErr = xValidateSchedule(pxScheduleTable, ulTableSize, ulSubFrameDurationMs, ulTotalSubFrames);
     if(xErr != SCHED_VALID)
     {
-	// an error occurs and we call again the hook
-	vApplicationScheduleErrorHook(xErr);
-	configASSERT(0);
+        #if TESTING
+            //To avoid locking in testing!
+        #else
+            // an error occurs and we call again the hook
+            vApplicationScheduleErrorHook(xErr);
+            configASSERT(0);
+        #endif
     }
 
     // Step 1: Save the parameters (We will use later)
@@ -540,4 +550,30 @@ void vResetTimelineMajorFrame(void)
 	    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
         vTaskNotifyGiveFromISR(xFirstSRTHandle, &xHigherPriorityTaskWoken);
     }
+}
+
+/*
+ * ERROR HOOK
+ * Defined by the application to handle critical scheduler errors.
+ * This function is called by 'vStartTimelineScheduler' if validation fails.
+ *
+*/
+void vApplicationScheduleErrorHook(SchedError_t xError)
+{
+
+    UART_printf("\n!WARNING!\nScheduler Error detected!!\n");
+    UART_printf("\n-The system stopped-\n");
+
+    switch (xError)
+    {
+        case ERR_OVERLAP:        UART_printf("Reason: HRT Task Overlap Detected!\r\n"); break;
+        case ERR_OUT_OF_BOUNDS:  UART_printf("Reason: Task Duration Exceeds Subframe Limit!\r\n"); break;
+        case ERR_INVALID_SF:     UART_printf("Reason: Invalid Subframe ID configured!\r\n"); break;
+        case ERR_INVALID_TIME:   UART_printf("Reason: Task End-Time is before Start-Time!\r\n"); break;
+        case ERR_PREPROCESS_FAIL:UART_printf("Reason: Preprocessing Failed! (Check Task Boundaries or Frame logic)\r\n"); break;
+        default:                 UART_printf("Reason: Unknown Error.\r\n"); break;
+    }
+
+    taskDISABLE_INTERRUPTS();
+    for (;;) {}
 }

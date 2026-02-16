@@ -1,5 +1,6 @@
 #include "testing/commons/scheduler_common.h"
 #include "timeline_scheduler.h"
+#include <string.h>
 
 #define MAJOR_MS   500u
 #define SF_MS      100u
@@ -37,18 +38,20 @@ static TimelineTaskConfig_t my_schedule[] = {
 
 test_result_t run_test(void)
 {
-    vTestPlatformBringUp(true);
 
     const uint32_t numTasks = (uint32_t)(sizeof(my_schedule) / sizeof(my_schedule[0]));
     const uint32_t subFrameCount = TOTAL_SF;
 
-    ASSERT(xPreprocessSchedule(my_schedule, numTasks, SF_MS) == SCHED_VALID);
     ulSubFrameDuration = SF_MS;
 
-    extern SchedError_t xValidateSchedule(const TimelineTaskConfig_t*, uint32_t, uint32_t, uint32_t);
-    ASSERT(xValidateSchedule(my_schedule, numTasks, SF_MS, subFrameCount) == SCHED_VALID);
+    TimelineTaskConfig_t sched_copy[3];
+    memcpy(sched_copy, my_schedule, sizeof(my_schedule));
 
-    vStartTimelineScheduler(my_schedule, numTasks, SF_MS, subFrameCount);
+    ASSERT(xPreprocessSchedule(sched_copy, 3, SF_MS) == SCHED_VALID);
+    ASSERT(xValidateSchedule(sched_copy, 3, SF_MS, TOTAL_SF) == SCHED_VALID);
+
+    vTestPlatformBringUp(true, my_schedule, numTasks);
+    vStartTimelineScheduler(my_schedule, numTasks, SF_MS, TOTAL_SF);
 
     //never reached
     return TEST_FAIL;
