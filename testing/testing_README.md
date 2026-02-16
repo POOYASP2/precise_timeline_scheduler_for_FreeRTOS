@@ -48,6 +48,19 @@ Checks that the updating function (assumed to run every tick) udpates tasks corr
 These tests are just simulations for extreme use cases, such as strict hrt deadlines with preemption (simulation A) or forced deadlines misses (simulation B).
 Simulation C is not a stress test but is made to be easily editable for manual testing of the scheduler and as a baseline for other simulations.
 
+### Advanced Tests
+These tests target specific edge cases, timing precision, and robustness requirements of the Time-Triggered architecture.
+
+#### SRT Chaining
+Verifies that multiple Soft Real-Time (SRT) tasks execute sequentially (in a chain) within the idle time of a single sub-frame. It ensures that after one SRT task finishes, the scheduler correctly identifies and launches the next pending SRT task.
+
+#### Timing Jitter & Drift
+Checks the precision of the global clock, specifically during empty sub-frames. It ensures the scheduler does not "fast-forward" through empty slots but waits for the exact sub-frame duration to elapse, preventing timing drift.
+
+#### HRT Overrun (Robustness)
+Simulates a critical failure where a Hard Real-Time (HRT) task enters an infinite while(1) loop and refuses to yield the CPU. Verifies that the scheduler successfully interrupts, terminates (or suspends), and marks the task as DEADLINE_MISSED exactly when the time slot expires.
+
+
 ## How to run
 Inside the testing directory there is another Makefile that runs the root Makefile to start qemu and then can run each test separately using the main() function defined in 'test_common.c'.
 
