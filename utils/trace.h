@@ -63,4 +63,6 @@ void TracePushIdle(uint16_t idle_ticks,
 
 void vLoggingTask(void *pvParameters);
 
+void TraceRegisterTaskName(uint8_t taskId, const char *name);
+
 #endif /* TRACE_H */

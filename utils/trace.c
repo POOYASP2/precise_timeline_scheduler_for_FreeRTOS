@@ -9,6 +9,27 @@
 #define TRACE_QUEUE_LEN 256
 #endif
 
+/* ---- TaskId -> Name lookup  ---- */
+#ifndef TRACE_MAX_TASKS
+#define TRACE_MAX_TASKS 16
+#endif
+
+static const char *gTraceTaskNames[TRACE_MAX_TASKS] = {0};
+
+void TraceRegisterTaskName(uint8_t taskId, const char *name)
+{
+    if (taskId < TRACE_MAX_TASKS) {
+        gTraceTaskNames[taskId] = name;
+    }
+}
+
+static const char *prvTraceGetTaskName(uint8_t taskId)
+{
+    if (taskId < TRACE_MAX_TASKS) return gTraceTaskNames[taskId];
+    return NULL;
+}
+/* -------------------------------------------- */
+
 static QueueHandle_t xTraceQueue = NULL;
 static volatile uint32_t ulDropped = 0;
 
@@ -98,7 +119,7 @@ void TracePushTimeline(uint8_t taskId,
                        uint16_t info16)
 {
     if (xTraceQueue == NULL) return;
-    
+
     TraceLog_t log;
     log.tick     = xTaskGetTickCount();
     log.frame_ms = frame_ms;
@@ -187,11 +208,18 @@ void vLoggingTask(void *pvParameters)
             msg[k++] = 'm'; msg[k++] = 's';
             msg[k++] = ' ';
 
-            /* Task label */
+            /* Task label (name if registered, else numeric id) */
             if (r.taskId == 0xFFu) {
                 msg[k++] = 'S'; msg[k++] = 'Y'; msg[k++] = 'S';
             } else {
-                msg[k++] = (char)('A' + r.taskId);
+                const char *name = prvTraceGetTaskName(r.taskId);
+                if (name != NULL && name[0] != '\0') {
+                    for (int i = 0; name[i] != '\0' && k < (int)sizeof(msg) - 1; i++) msg[k++] = name[i];
+                } else {
+                    char num16_task[8];
+                    u16_to_dec(num16_task, (uint16_t)r.taskId);
+                    for (int i = 0; num16_task[i] != '\0' && k < (int)sizeof(msg) - 1; i++) msg[k++] = num16_task[i];
+                }
             }
             msg[k++] = ' ';
 
