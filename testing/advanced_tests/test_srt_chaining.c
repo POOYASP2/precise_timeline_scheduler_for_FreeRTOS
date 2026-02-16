@@ -158,9 +158,6 @@ test_result_t run_test(void)
     xTaskCreate(vCheckerTask, "Checker", 256, NULL, configMAX_PRIORITIES-1, NULL);
 
     const uint32_t numTasks = 4;
-    
-    // Preprocess to link SRTs correctly
-    xPreprocessSchedule(test_schedule, numTasks, SF_MS);
 
     vTestPlatformBringUp(true, test_schedule, numTasks);
     vStartTimelineScheduler(test_schedule, numTasks, SF_MS, TOTAL_SF);

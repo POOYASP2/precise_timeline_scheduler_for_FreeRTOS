@@ -107,8 +107,6 @@ test_result_t run_test(void)
 
     const uint32_t numTasks = 1;
     
-    xPreprocessSchedule(test_schedule, numTasks, SF_MS); 
-
     vTestPlatformBringUp(true, test_schedule, numTasks);
     vStartTimelineScheduler(test_schedule, numTasks, SF_MS, TOTAL_SF);
 
