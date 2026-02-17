@@ -4,10 +4,6 @@
 #include "trace.h"
 #include "timeline_scheduler.h"
 
-#define WORK_LOAD_1MS 50000
-
-volatile int sharedSensorData = 0;
-
 /* --------------------------------------------------------------------------
  * Generated schedule (tools/schedule.json -> generated/schedule_config.c)
  * -------------------------------------------------------------------------- */
@@ -18,83 +14,6 @@ extern const uint32_t my_schedule_count;
 extern const uint32_t g_major_frame_ms;
 extern const uint32_t g_minor_frame_ms;
 extern const uint32_t g_subframe_count;
-
-// HRT tasks
-// short and simple task
-void vTask1(void *pvParams)
-{
-    (void)pvParams;
-    UART_printf("HRT 1\n");
-    for (volatile uint32_t i = 0; i < (WORK_LOAD_1MS) * 2; i++)
-    {
-        __asm volatile("nop");
-    }
-}
-
-// heavy task
-void vTask2(void *pvParams)
-{
-    (void)pvParams;
-    UART_printf("HRT 2\n");
-    for (volatile uint32_t i = 0; i < (WORK_LOAD_1MS) * 10; i++)
-    {
-        __asm volatile("nop");
-    }
-}
-
-// intermediate level heavy task
-void vTask3(void *pvParams)
-{
-    (void)pvParams;
-    UART_printf("HRT  3\n");
-
-    for (volatile uint32_t i = 0; i < (WORK_LOAD_1MS) * 5; i++)
-    {
-        __asm volatile("nop");
-    }
-}
-
-// SRT tasks
-void vTaskSRT_A(void *pvParams)
-{
-    (void)pvParams;
-    UART_printf("SRT A\r\n");
-
-    for (volatile uint32_t i = 0; i < (WORK_LOAD_1MS / 2); i++)
-        ;
-}
-
-void vTaskSRT_B(void *pvParams)
-{
-    (void)pvParams;
-    UART_printf("SRT B\r\n");
-
-    for (volatile uint32_t i = 0; i < (WORK_LOAD_1MS / 2); i++)
-        ;
-}
-
-void vTaskProducer(void *pvParams)
-{
-    (void)pvParams;
-    // increment the value
-    sharedSensorData++;
-    UART_printf(" Producer wrote the data!\n");
-
-    for (volatile uint32_t i = 0; i < (WORK_LOAD_1MS * 2); i++)
-        ;
-}
-
-void vTaskConsumer(void *pvParams)
-{
-    (void)pvParams;
-    // Reading the data (Polling)
-    int read_data = sharedSensorData;
-    (void)read_data;
-
-    UART_printf(" Consumer read the data!\n");
-    for (volatile uint32_t i = 0; i < (WORK_LOAD_1MS * 2); i++)
-        ;
-}
 
 int main(void)
 {
