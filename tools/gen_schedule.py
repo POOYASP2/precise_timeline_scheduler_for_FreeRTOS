@@ -35,6 +35,7 @@
 import json
 import os
 import sys
+import re
 from typing import Any, Dict, List, Set
 
 REQUIRED_TOP = ["major_frame_ms", "minor_frame_ms", "tasks"]
@@ -51,6 +52,40 @@ REQUIRED_TASK = [
 ]
 
 VALID_TYPES = {"HARD_RT", "SOFT_RT"}
+
+_C_IDENT = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')
+
+def emit_schedule_tasks_h(data: dict) -> str:
+    funcs = []
+    seen = set()
+
+    for t in data.get("tasks", []):
+        fn = t.get("function")
+        if not fn:
+            raise ValueError(f"Task missing 'function': {t}")
+        if not _C_IDENT.match(fn):
+            raise ValueError(f"Invalid C identifier for function: {fn}")
+        if fn not in seen:
+            seen.add(fn)
+            funcs.append(fn)
+
+    # Optional: stable order
+    funcs.sort()
+
+    lines = []
+    lines.append("#ifndef SCHEDULE_TASKS_H")
+    lines.append("#define SCHEDULE_TASKS_H")
+    lines.append("")
+    lines.append('#include "FreeRTOS.h"')
+    lines.append('#include "task.h"')
+    lines.append("")
+    lines.append("/* Prototypes for tasks referenced by generated schedule_config.c */")
+    for fn in funcs:
+        lines.append(f"void {fn}(void *pvParams);")
+    lines.append("")
+    lines.append("#endif")
+    lines.append("")
+    return "\n".join(lines)
 
 
 def die(msg: str) -> None:
@@ -81,9 +116,9 @@ def validate(cfg: Dict[str, Any]) -> None:
     major = cfg["major_frame_ms"]
     minor = cfg["minor_frame_ms"]
 
-    if not _is_int(major) or major <= 0:
+    if not _is_int(major) or major < 0:
         die("major_frame_ms must be a positive int")
-    if not _is_int(minor) or minor <= 0:
+    if not _is_int(minor) or minor < 0:
         die("minor_frame_ms must be a positive int")
     if major % minor != 0:
         die("major_frame_ms must be divisible by minor_frame_ms")
@@ -170,6 +205,7 @@ def emit_c(cfg: Dict[str, Any]) -> str:
     lines.append('#include "timeline_scheduler.h"')
     # NEW: prototypes for functions referenced in schedule JSON
     lines.append('#include "schedule_tasks.h"')
+    lines.append('#include "task.h"')
     lines.append("")
     lines.append("/* Auto-generated from schedule.json. DO NOT EDIT. */")
     lines.append("")
@@ -208,6 +244,10 @@ def main() -> None:
 
     cfg = load_json(in_path)
     validate(cfg)
+
+    tasks_h_text = emit_schedule_tasks_h(cfg)
+    with open("generated/schedule_tasks.h", "w", encoding="utf-8") as f:
+        f.write(tasks_h_text)
 
     out_dir = os.path.dirname(out_path)
     if out_dir:

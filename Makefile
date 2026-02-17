@@ -60,6 +60,7 @@ DEVICE_DIR = device
 CONFIG_DIR = config
 DRIVERS_DIR = drivers
 UTILS_DIR   = utils
+TASKS_DIR = tasks
 
 # -----------------------------------------------------------------------------
 # Schedule Code Generation
@@ -101,6 +102,8 @@ SOURCES += \
 SOURCES += timeline_scheduler.c \
 	   application_hooks.c
 
+SOURCES  += $(wildcard $(TASKS_DIR)/*.c)
+
 USE_APP_MAIN ?= 1
 ifeq ($(USE_APP_MAIN),1)
 SOURCES += main.c \
@@ -134,6 +137,7 @@ CFLAGS = $(MCU_FLAGS) $(INCLUDES) \
     -O0 -g3 -w -Wall -Wextra \
     -ffunction-sections -fdata-sections \
     $(USER_DEFINES)
+CFLAGS   += -I$(TASKS_DIR) -Iinc
 
 LDFLAGS = $(MCU_FLAGS) \
     -T$(DEVICE_DIR)/mps2_an386.ld \
