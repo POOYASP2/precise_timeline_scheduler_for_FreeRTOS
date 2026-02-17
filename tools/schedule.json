@@ -1,0 +1,17 @@
+{
+  "major_frame_ms": 10000,
+  "minor_frame_ms": 1000,
+  "tasks": [
+    
+    {
+      "taskId": 0,
+      "task_name": "HRT_Mid",
+      "function": "vTask1",
+      "type": "HARD_RT",
+      "start_ms": 0,
+      "end_ms": 99,
+      "subframe_id": 0,
+      "stack_words": 256
+    }
+  ]
+}
