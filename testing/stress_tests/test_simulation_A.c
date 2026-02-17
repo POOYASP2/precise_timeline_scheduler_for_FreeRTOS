@@ -12,7 +12,7 @@ static void vTinyWork(void *pv)
 {
     (void)pv;
     g_started++;
-    for (volatile uint32_t i = 0; i < 2000; i++) { __asm volatile("nop"); }
+    for (volatile uint32_t i = 0; i < 100000; i++) { __asm volatile("nop"); }
 }
 
 static void vChecker(void *pv);

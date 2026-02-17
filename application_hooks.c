@@ -2,49 +2,57 @@
 #include "task.h"
 #include "uart.h"
 #include "timeline_scheduler.h"
-#include "trace.h"   // <-- add this
+#include "trace.h"   
 
-/* Log idle time as "ticks spent idle" per subframe. */
+
+/* Global variable to store the "High Score" of idle loops */
+volatile uint32_t ulMaxIdleCountObserved = 0; 
+#define SUBFRAME_DURATION_MS 100
+
 void vApplicationIdleHook(void)
 {
-    static TickType_t xLastTick = 0;
-    static uint16_t   usIdleTicksThisSubframe = 0;
-    static uint32_t   ulLastSubframe = 0xFFFFFFFFu;
+    static uint32_t ulIdleLoopCount = 0;
+    
+    /* 1. Increment the counter */
+    ulIdleLoopCount++; 
 
-    /* These are defined in FreeRTOS-Kernel/tasks.c */
     extern volatile uint32_t ulCurrentSubFrameIndex;
     extern volatile uint32_t ulGlobalTimeInFrame;
-
-    /* Count idle ticks (only when tick changes to avoid overcounting). */
-    TickType_t xNow = xTaskGetTickCount();
-    if (xLastTick == 0) {
-        xLastTick = xNow;
-    } else if (xNow != xLastTick) {
-        TickType_t xDiff = xNow - xLastTick; /* unsigned handles wrap */
-        if (xDiff > 0xFFFFu) xDiff = 0xFFFFu;
-        usIdleTicksThisSubframe = (uint16_t)(usIdleTicksThisSubframe + (uint16_t)xDiff);
-        xLastTick = xNow;
-    }
-
-    /* Log once when the subframe changes. */
+    static uint32_t ulLastSubframe = 0xFFFFFFFF;
+    
     uint32_t ulSf = ulCurrentSubFrameIndex;
-
-    if (ulLastSubframe == 0xFFFFFFFFu) {
-        ulLastSubframe = ulSf;
-    }
-
-    if (ulSf != ulLastSubframe) {
-        if (usIdleTicksThisSubframe != 0) {
-            /* frame_ms: current time in major frame (ms in your design),
-               subframe: the one we just finished */
-            TracePushIdle(usIdleTicksThisSubframe,
-                          (uint16_t)ulGlobalTimeInFrame,
-                          (uint8_t)ulLastSubframe);
+    
+    /* Check for Subframe Boundary */
+    if (ulSf != ulLastSubframe && ulLastSubframe != 0xFFFFFFFF)
+    {
+        /* AUTO-CALIBRATION: Update the Max if we found a new "laziest" frame */
+        if (ulIdleLoopCount > ulMaxIdleCountObserved)
+        {
+            ulMaxIdleCountObserved = ulIdleLoopCount;
         }
 
-        usIdleTicksThisSubframe = 0;
-        ulLastSubframe = ulSf;
+        /* CALCULATION: (Current * 100) / Max */
+        /* If Max is still 0 (first run), assume 0% to avoid divide-by-zero */
+        uint32_t ulCalculatedMs = 0;
+        
+        if (ulMaxIdleCountObserved > 0)
+        {
+             // Use 64-bit math to prevent overflow: (Count * 100) / Max
+            ulCalculatedMs = (uint32_t)( ( (uint64_t)ulIdleLoopCount * SUBFRAME_DURATION_MS ) / ulMaxIdleCountObserved );
+        }
+
+        /* Safety Clamp */
+        if (ulCalculatedMs > SUBFRAME_DURATION_MS) ulCalculatedMs = SUBFRAME_DURATION_MS;
+
+        /* Send the TIME */
+        TracePushIdle((uint16_t)ulCalculatedMs, 
+                      (uint16_t)ulGlobalTimeInFrame, 
+                      (uint8_t)ulLastSubframe);
+                      
+        ulIdleLoopCount = 0; // Reset
     }
+    
+    ulLastSubframe = ulSf;
 }
 
 /*

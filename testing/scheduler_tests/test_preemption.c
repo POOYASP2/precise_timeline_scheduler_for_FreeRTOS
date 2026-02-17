@@ -21,6 +21,7 @@ static void vLongSRT(void *pv)
         qemu_exit(TEST_FAIL);
         for (;;) {}
     } else {
+        UART_printf("Preemption happened!\n");
         qemu_exit(TEST_PASS);
         for (;;) {}
     }
@@ -29,7 +30,7 @@ static void vLongSRT(void *pv)
 static void vHRT(void *pv)
 {
     (void)pv;
-
+    
     hrt_executed++;
 }
 

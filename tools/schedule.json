@@ -8,7 +8,7 @@
       "task_name": "HRT_Mid",
       "function": "vTask1",
       "type": "HARD_RT",
-      "start_ms": 0,
+      "start_ms": 1,
       "end_ms": 99,
       "subframe_id": 0,
       "stack_words": 256
