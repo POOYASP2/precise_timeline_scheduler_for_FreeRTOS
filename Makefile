@@ -61,6 +61,15 @@ CONFIG_DIR = config
 DRIVERS_DIR = drivers
 UTILS_DIR   = utils
 
+# -----------------------------------------------------------------------------
+# Schedule Code Generation
+# -----------------------------------------------------------------------------
+PYTHON ?= python3
+SCHEDULE_JSON := tools/schedule.json
+GEN_DIR := generated
+GEN_SCHEDULE_C := $(GEN_DIR)/schedule_config.c
+GEN_SCRIPT := tools/gen_schedule.py
+
 # Include Paths
 INCLUDES = \
     -I$(SOURCE_DIR) \
@@ -102,7 +111,7 @@ ifeq ($(USE_APP_MAIN),0)
 USER_DEFINES += -DTESTING=1
 endif
 
-#this is for mainly testing
+# this is for mainly testing
 EXTRA_SOURCES ?=
 SOURCES += $(EXTRA_SOURCES)
 
@@ -113,6 +122,9 @@ SOURCES += $(DRIVERS_SRCS) $(UTILS_SRCS)
 
 DRIVERS_OBJS := $(DRIVERS_SRCS:.c=.o)
 UTILS_OBJS   := $(UTILS_SRCS:.c=.o)
+
+# 5. Generated Schedule (auto)
+SOURCES += $(GEN_SCHEDULE_C)
 
 # -----------------------------------------------------------------------------
 # Compiler Flags
@@ -137,7 +149,13 @@ OBJS = $(SOURCES:.c=.o)
 
 all: $(PROJECT).elf
 
-$(PROJECT).elf: $(OBJS)
+# Generate schedule_config.c from schedule.json
+$(GEN_SCHEDULE_C): $(SCHEDULE_JSON) $(GEN_SCRIPT)
+	@echo "Generating schedule from $(SCHEDULE_JSON)..."
+	@mkdir -p $(GEN_DIR)
+	$(PYTHON) $(GEN_SCRIPT) $(SCHEDULE_JSON) $(GEN_SCHEDULE_C)
+
+$(PROJECT).elf: $(GEN_SCHEDULE_C) $(OBJS)
 	@echo "Linking..."
 	$(CC) $(OBJS) $(LDFLAGS) -o $@
 	$(SIZE) $@
@@ -148,6 +166,7 @@ $(PROJECT).elf: $(OBJS)
 
 clean:
 	rm -f $(OBJS) $(PROJECT).elf $(PROJECT).map
+	rm -rf $(GEN_DIR)
 
 # -----------------------------------------------------------------------------
 # Simulation Rules
