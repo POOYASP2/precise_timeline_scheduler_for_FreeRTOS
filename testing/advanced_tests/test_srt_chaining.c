@@ -32,9 +32,7 @@
 static int execution_log[10]; 
 static int log_idx = 0;
 
-/* * Helper Function: Integer to String Conversion 
- * Used to avoid dependency on snprintf/printf standard library overhead.
- */
+// an helper function for converting integer to string
 void simple_itoa(int num, char* str) {
     int i = 0;
     int isNegative = 0;
@@ -73,8 +71,7 @@ void simple_itoa(int num, char* str) {
     }
 }
 
-// --- TASK FUNCTIONS ---
-
+// Task Functions
 static void vHRT_Gate(void *pv) 
 { 
     (void)pv; 
@@ -99,7 +96,7 @@ static void vSRT_3(void *pv)
     execution_log[log_idx++] = 4; // ID 4: SRT 3 Executed
 }
 
-// --- VERIFICATION TASK (Checker) ---
+// Verification task
 // This task is not part of the timeline schedule. It monitors the results.
 static void vCheckerTask(void *pv)
 {
@@ -140,7 +137,7 @@ static void vCheckerTask(void *pv)
     for(;;);
 }
 
-// --- SCHEDULE DEFINITION ---
+// The test table
 static TimelineTaskConfig_t test_schedule[] = {
     // Name, Function, Type, Start, End, SubframeID, Stack, ID, Handle, State
     {"HRT_Gate", vHRT_Gate, HARD_RT, 0, 5, 0, 256, 1, NULL, TASK_NOT_STARTED},
@@ -149,7 +146,7 @@ static TimelineTaskConfig_t test_schedule[] = {
     {"SRT_3",    vSRT_3,    SOFT_RT, 0, 0, 0, 256, 4, NULL, TASK_NOT_STARTED},
 };
 
-// --- TEST ENTRY POINT ---
+// entry pt of the test
 test_result_t run_test(void)
 {
     log_idx = 0;

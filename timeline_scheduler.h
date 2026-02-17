@@ -5,7 +5,7 @@
 #include "FreeRTOS.h"
 #include "task.h"
 
-// Define the Task States
+// The task states
 typedef enum {
     TASK_NOT_STARTED = 0, // Default value
     TASK_RUNNING,
@@ -13,13 +13,13 @@ typedef enum {
     TASK_DEADLINE_MISSED
 } TimelineTaskStatus_t;
 
-//Define the Task Types
+// The task types
 typedef enum {
-    HARD_RT,   // Must start/end exactly on time. Killed if late.Start other tasks if terminated earlier than deadline
+    HARD_RT,   // Must start/end exactly on time. Killed if late. Start other tasks if terminated earlier than deadline
     SOFT_RT    // Runs only if CPU is idle.
 } TaskType_t;
 
-/* Define the Error Codes */
+/* Error Codes */
 typedef enum {
 	SCHED_VALID = 0,
 	ERR_INVALID_TIME, // Start >= End
@@ -29,8 +29,7 @@ typedef enum {
 	ERR_PREPROCESS_FAIL // absolute to relative conversion failed
 } SchedError_t;
 
-/* Define the Configuration Structure 
-   This is what the user fills out in main.c to define their plan. */
+/* The Configuration Structure that is filled out inside main.c */
 typedef struct {
     const char* task_name;      // Human readable name (for debugging)
     TaskFunction_t function;    // Pointer to the function to run

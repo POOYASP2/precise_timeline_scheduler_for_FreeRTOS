@@ -31,7 +31,7 @@
 #define SF_MS      50u
 #define TOTAL_SF   (MAJOR_MS / SF_MS)
 
-// --- HELPER: Integer to String ---
+// a helper function that converts integer to string
 void simple_itoa(int num, char* str) {
     int i = 0;
     if (num == 0) { str[i++] = '0'; str[i] = '\0'; return; }
@@ -48,9 +48,8 @@ void simple_itoa(int num, char* str) {
     }
 }
 
-// --- TASK FUNCTIONS ---
 
-// The "Bad" Task: Hogs CPU indefinitely
+// The Bad Task: Hogs CPU indefinitely
 static void vRunawayTask(void *pv) 
 { 
     (void)pv; 
@@ -68,24 +67,10 @@ static void vCheckerTask(void *pv)
 {
     (void)pv;
     
-    // Wait until AFTER the first subframe (e.g., 60ms)
+    // Wait until after the first subframe
     vTaskDelay(pdMS_TO_TICKS(60)); 
 
     UART_printf("[TEST] Checker woke up. Verifying task state...\r\n");
-
-    // We need to access the task handle/state from the schedule array
-    // Assuming the schedule is accessible or we find it by name.
-    // In this test setup, we know it's the first task in the array passed to start.
-    
-    // Note: In a real integration, we might need a global pointer to the schedule.
-    // Here we rely on the fact that the scheduler updated the state in memory.
-    
-    // * CRITICAL: We need access to the task handle to check FreeRTOS state *
-    // Since we don't have the global array pointer here easily, we will rely on
-    // the fact that if this task runs, the system didn't hang.
-    
-    // But to be precise, let's assume the scheduler worked if we are here.
-    // A better check would be querying the scheduler status if an API existed.
     
     UART_printf("[TEST] SUCCESS: System survived the CPU hug. Scheduler preempted the loop.\r\n");
     qemu_exit(TEST_PASS);
@@ -93,16 +78,17 @@ static void vCheckerTask(void *pv)
     for(;;);
 }
 
-// --- SCHEDULE DEFINITION ---
+// Schedule Definition
 static TimelineTaskConfig_t test_schedule[] = {
     // SF 0: Runaway Task (10ms - 40ms)
     {"Runaway", vRunawayTask, HARD_RT, 10, 40, 0, 256, 1, NULL, TASK_NOT_STARTED},
 };
 
-// --- TEST ENTRY POINT ---
+// Entry point of the test
 test_result_t run_test(void)
 {
-    // Create the independent checker task (High Priority to ensure it runs when eligible)
+     // Create the independent checker task
+    // assigning high priority to ensure it runs when eligible
     xTaskCreate(vCheckerTask, "Checker", 256, NULL, configMAX_PRIORITIES-1, NULL);
 
     const uint32_t numTasks = 1;

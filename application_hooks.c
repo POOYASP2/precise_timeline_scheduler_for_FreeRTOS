@@ -5,7 +5,7 @@
 #include "trace.h"   
 
 
-/* Global variable to store the "High Score" of idle loops */
+/* Storing the high score of idle loops */
 volatile uint32_t ulMaxIdleCountObserved = 0; 
 #define SUBFRAME_DURATION_MS 100
 
@@ -25,26 +25,24 @@ void vApplicationIdleHook(void)
     /* Check for Subframe Boundary */
     if (ulSf != ulLastSubframe && ulLastSubframe != 0xFFFFFFFF)
     {
-        /* AUTO-CALIBRATION: Update the Max if we found a new "laziest" frame */
+        /* Update the max if we found a new laziest frame */
         if (ulIdleLoopCount > ulMaxIdleCountObserved)
         {
             ulMaxIdleCountObserved = ulIdleLoopCount;
         }
 
-        /* CALCULATION: (Current * 100) / Max */
-        /* If Max is still 0 (first run), assume 0% to avoid divide-by-zero */
+        /* [(Current * 100) / Max] is the formula */
+        /* If Max is still 0, we assume 0% to avoid divide-by-zero stuff */
         uint32_t ulCalculatedMs = 0;
         
         if (ulMaxIdleCountObserved > 0)
         {
-             // Use 64-bit math to prevent overflow: (Count * 100) / Max
+             // 64-bit to prevent overflow
             ulCalculatedMs = (uint32_t)( ( (uint64_t)ulIdleLoopCount * SUBFRAME_DURATION_MS ) / ulMaxIdleCountObserved );
         }
 
-        /* Safety Clamp */
         if (ulCalculatedMs > SUBFRAME_DURATION_MS) ulCalculatedMs = SUBFRAME_DURATION_MS;
 
-        /* Send the TIME */
         TracePushIdle((uint16_t)ulCalculatedMs, 
                       (uint16_t)ulGlobalTimeInFrame, 
                       (uint8_t)ulLastSubframe);
@@ -55,12 +53,8 @@ void vApplicationIdleHook(void)
     ulLastSubframe = ulSf;
 }
 
-/*
- * ERROR HOOK
- * Defined by the application to handle critical scheduler errors.
- * This function is called by 'vStartTimelineScheduler' if validation fails.
- *
-*/
+
+// Error Hook function
 void vApplicationScheduleErrorHook(SchedError_t xError)
 {
     UART_printf("\n!WARNING!\nScheduler Error detected!!\n");

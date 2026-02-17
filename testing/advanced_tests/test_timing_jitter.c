@@ -28,8 +28,7 @@
 #define SF_MS      20u
 #define TOTAL_SF   (MAJOR_MS / SF_MS)
 
-/* * Helper Function: Integer to String Conversion 
- */
+// int -> str converting helper function
 void simple_itoa(int num, char* str) {
     int i = 0;
     if (num == 0) { str[i++] = '0'; str[i] = '\0'; return; }
@@ -47,8 +46,6 @@ void simple_itoa(int num, char* str) {
         start++; end--;
     }
 }
-
-// --- TASK FUNCTIONS ---
 
 // Dummy task for Sub-frame 0
 static void vTaskA(void *pv) 
@@ -72,7 +69,7 @@ static void vTaskB(void *pv)
     
     UART_printf("[TEST] Expected start tick: 40\r\n");
 
-    // Check: 40ms +/- 1 tick tolerance (Range: 39 - 41)
+    // Checkinf the 40ms +/- 1 tick tolerance (Range: 39 - 41)
     if (current_tick >= 39 && current_tick <= 41) 
     {
         UART_printf("[TEST] SUCCESS: Timing is accurate.\r\n");
@@ -87,7 +84,7 @@ static void vTaskB(void *pv)
     for(;;);
 }
 
-// --- SCHEDULE DEFINITION ---
+// table:
 static TimelineTaskConfig_t test_schedule[] = {
     // SF 0 (0-20ms) Task
     {"Task_A", vTaskA, HARD_RT, 5, 15, 0, 256, 1, NULL, TASK_NOT_STARTED},
@@ -98,7 +95,7 @@ static TimelineTaskConfig_t test_schedule[] = {
     {"Task_B", vTaskB, HARD_RT, 40, 50, 0, 256, 2, NULL, TASK_NOT_STARTED},
 };
 
-// --- TEST ENTRY POINT ---
+// entry pt of the test:
 test_result_t run_test(void)
 {
     const uint32_t numTasks = 2;

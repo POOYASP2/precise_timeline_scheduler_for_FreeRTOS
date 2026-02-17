@@ -25,15 +25,7 @@ static uint32_t ulSubFrameSize = 0;
 // Handle for the first SRT task of the chain
 static TaskHandle_t xFirstSRTHandle = NULL;
 
-/*
- * INTERNAL VALIDATION FUNCTION
- * This function is static (private) to hide validation logic from the user (Encapsulation).
- * It checks for:
- * 1. Invalid Subframe IDs
- * 2. Invalid Timings (Start >= End)
- * 3. Boundary Violations (Task exceeds subframe duration)
- * 4. Task Overlaps (Only for Hard Real-Time tasks)
- */
+/* INTERNAL VALIDATION FUNCTION */
 SchedError_t xValidateSchedule(const TimelineTaskConfig_t *pxSchedule,
 					uint32_t uxTaskCount,
 					uint32_t ulSubFrameDuration,
@@ -82,16 +74,11 @@ SchedError_t xValidateSchedule(const TimelineTaskConfig_t *pxSchedule,
     return SCHED_VALID;
 }
 
+/* The Task Wrapper */
 void vTaskWrapper(void *pvParameters)
 {
     TimelineTaskConfig_t *pxTask = (TimelineTaskConfig_t *)pvParameters;
 
-    /* TaskId mapping: assume schedule index stored elsewhere is not available.
-       Quick approach: use (task_name[5] - '1') is fragile.
-       Better: add a field in config for stable id.
-       For now: use 0 for TASK1, 1 for TASK2 based on pointer match is not possible here.
-       So we log with taskId=0xEE as "unknown" until you add an id field.
-    */
     const uint8_t taskId = pxTask->taskId;
 
     if (pxTask->type == HARD_RT){
@@ -258,12 +245,8 @@ void vStartTimelineScheduler(TimelineTaskConfig_t *pxScheduleTable,
                              uint32_t ulSubFrameDurationMs,
                              uint32_t ulTotalSubFrames)
 {
-    /*
-     * PREPROCESS & VALIDATION (ENCAPSULATION)
-     * We perform validation INSIDE the scheduler so main.c doesn't need to worry about it.
-     * If an error occurs, we call a user-defined Hook Function (FreeRTOS style).
-     */
-    // Convert Absolute Times to Relative Times
+    // Calling the preporcess & validation function to validate inside the scheduler before scheduling.
+    // Absolute Times -> Relative Times
     if(xPreprocessSchedule(pxScheduleTable, ulTableSize, ulSubFrameDurationMs) != SCHED_VALID)
     {
         // if the condition occurs, there's an error and we call the hook function.
@@ -288,7 +271,7 @@ void vStartTimelineScheduler(TimelineTaskConfig_t *pxScheduleTable,
         #endif
     }
 
-    // Step 1: Save the parameters (We will use later)
+    // Save the parameters (We will use later)
     pxCurrentSchedule = pxScheduleTable;
     ulScheduleSize = ulTableSize;
     ulSubFrameSize = ulSubFrameDurationMs;
@@ -296,7 +279,7 @@ void vStartTimelineScheduler(TimelineTaskConfig_t *pxScheduleTable,
     // A function to configure the time-related parameters of our scheduler
     vConfigureTimerForTimeline(ulSubFrameDurationMs, ulTotalSubFrames);
 
-    /*Step2.2: Create subframe table for better implementation*/
+    // Create subframe table for better implementation
     pxSubframeTable = (SubFrameList_t *)pvPortMalloc(sizeof(SubFrameList_t) * ulTotalSubFrames);
 
     // Initialize subframe table
@@ -337,10 +320,7 @@ void vStartTimelineScheduler(TimelineTaskConfig_t *pxScheduleTable,
         }
     }
 
-    /* Step 3: We will loop through the table and call xTaskCreate here . */
-    // In this section, if there is no error in feasibility and scheduler table, we create tasks with the params
-    // we received from main.c (we create it using xTaskCreate() in which all the HRTs have the same priority)
-
+    /* We will loop through the table and call xTaskCreate here . */
     TimelineTaskConfig_t *pFirstSRT = NULL;
     TimelineTaskConfig_t *pPrevSRT = NULL;
 
@@ -400,15 +380,6 @@ void vStartTimelineScheduler(TimelineTaskConfig_t *pxScheduleTable,
         xTaskNotifyGive(xFirstSRTHandle);
     }
 
-    /* Step 5: we have to design a function which decides about tasks*/
-    // It loops through the scheduler table and switches to the most qualified task for executing. We will call this function
-    // inside xTaskIncrementTick() function to decide about tasks every tick (1 ms)
-    // This task is xUpdateTimelineScheduler() function
-
-    /* Step 6: Debug Print */
-    // Use standard printf if it works in QEMU
-    // printf("Scheduler Initialized! Total Tasks: %d\n", ulTableSize);
-
     // Create Supervisor Task
     xTaskCreate(
         vSupervisorTask,
@@ -430,7 +401,7 @@ void vStartTimelineScheduler(TimelineTaskConfig_t *pxScheduleTable,
         }
     }
 
-    /* Step 7: Start the Standard FreeRTOS Scheduler */
+    /* Start the Standard FreeRTOS Scheduler */
     vTaskStartScheduler();
 }
 
@@ -446,7 +417,7 @@ BaseType_t xUpdateTimelineScheduler(void)
     // Define a flag to notify xTaskIncrementTick() for context switching
     BaseType_t xContextSwitchRequired = pdFALSE;
 
-    // Convert global time (e.g. 12ms) to relative time (2ms)
+    // Convert global time to relative time 12ms -> 2ms for instance...
     uint32_t ulTimeInSubFrame = ulGlobalTimeInFrame % ulSubFrameDuration;
 
     // In boundaries, the deadline check for the task in previous subframe was ignored. So I add this line for the checking of boundaries
@@ -458,7 +429,7 @@ BaseType_t xUpdateTimelineScheduler(void)
         for (uint32_t i = 0; i < pxPrevBucket->ulTaskCount; i++) {
             TimelineTaskConfig_t *pxPrevTask = pxPrevBucket->FrameTasks[i];
             
-            // Check against Duration (e.g. 1000)
+            // Check against Duration
             if (pxPrevTask->ulEnd_time_ms == ulSubFrameDuration) {
                 if (pxPrevTask->state == TASK_RUNNING) {
                     pxPrevTask->state = TASK_DEADLINE_MISSED;
