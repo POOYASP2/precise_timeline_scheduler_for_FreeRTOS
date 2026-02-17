@@ -1,0 +1,56 @@
+{
+  "major_frame_ms": 100,
+  "minor_frame_ms": 10,
+  "tasks": [
+    {
+      "taskId": 0,
+      "task_name": "Producer",
+      "function": "vTaskProducer",
+      "type": "HARD_RT",
+      "start_ms": 2,
+      "end_ms": 5,
+      "subframe_id": 0,
+      "stack_words": 256
+    },
+    {
+      "taskId": 1,
+      "task_name": "Consumer",
+      "function": "vTaskConsumer",
+      "type": "HARD_RT",
+      "start_ms": 6,
+      "end_ms": 9,
+      "subframe_id": 0,
+      "stack_words": 256
+    },
+    {
+      "taskId": 2,
+      "task_name": "HRT_Mid",
+      "function": "vTask1",
+      "type": "HARD_RT",
+      "start_ms": 22,
+      "end_ms": 25,
+      "subframe_id": 2,
+      "stack_words": 256
+    },
+    {
+      "taskId": 3,
+      "task_name": "SRT_A",
+      "function": "vTaskSRT_A",
+      "type": "SOFT_RT",
+      "start_ms": 0,
+      "end_ms": 0,
+      "subframe_id": 0,
+      "stack_words": 256
+    },
+    {
+      "taskId": 4,
+      "task_name": "SRT_B",
+      "function": "vTaskSRT_B",
+      "type": "SOFT_RT",
+      "start_ms": 0,
+      "end_ms": 0,
+      "subframe_id": 0,
+      "stack_words": 256
+    }
+  ]
+}
