@@ -8,8 +8,8 @@ For a comprehensive guide on the architecture, kernel modifications, and API ref
 
 ## Authors
 
-* Giacomo Pessolano (s352714)
-* Kuzey Kara (s362739)
-* Mohammad Tohidnia (s355479)
-* Muhammed Emir Akinci (s360728)
-* Pooya Sharifi (s355130)
+* Giacomo Pessolano
+* [Kuzey Kara](https://kuzeykara.com)
+* Mohammad Tohidnia
+* Muhammed Emir Akinci
+* Pooya Sharifi
